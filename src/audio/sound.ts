@@ -1,16 +1,145 @@
+class RetroSynthesizer {
+  private getContext: () => AudioContext | null;
+  private isPlaying = false;
+  private stepInterval: any = null;
+  private stepIndex = 0;
+  private masterGain: GainNode | null = null;
+
+  constructor(getContext: () => AudioContext | null) {
+    this.getContext = getContext;
+  }
+
+  public start(chapter = 1, volume = 0.22): void {
+    this.stop();
+    this.isPlaying = true;
+    this.stepIndex = 0;
+
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    this.masterGain = ctx.createGain();
+    this.masterGain.gain.setValueAtTime(volume, ctx.currentTime);
+    this.masterGain.connect(ctx.destination);
+
+    // Chords and progressions per epoch/chapter
+    // Peaceful: C (261.63), G (392.00), Am (440.00), F (349.23)
+    // Dramatic: Am (220.00), F (174.61), C (261.63), G (196.00)
+    const isDramatic = chapter >= 5;
+    const chordProgressions = isDramatic
+      ? [
+          [220.0, 261.63, 329.63], // Am
+          [174.61, 220.0, 261.63], // F
+          [261.63, 329.63, 392.0], // C
+          [196.0, 246.94, 293.66], // G
+        ]
+      : [
+          [261.63, 329.63, 392.0], // C
+          [196.0, 246.94, 293.66], // G
+          [220.0, 261.63, 329.63], // Am
+          [174.61, 220.0, 261.63], // F
+        ];
+
+    const leadMelody = isDramatic
+      ? [440, 523.25, 440, 392, 349.23, 392, 440, 329.63]
+      : [523.25, 659.25, 587.33, 523.25, 392, 440, 523.25, 587.33];
+
+    // 16th note step: 180ms (~83 BPM)
+    const stepDuration = 0.18;
+
+    this.stepInterval = setInterval(() => {
+      if (!this.isPlaying) return;
+      const actx = this.getContext();
+      if (!actx || !this.masterGain) return;
+
+      const chordIdx = Math.floor(this.stepIndex / 4) % chordProgressions.length;
+      const currentChord = chordProgressions[chordIdx];
+      const arpNote = currentChord[this.stepIndex % 3];
+      const leadNote = leadMelody[Math.floor(this.stepIndex / 2) % leadMelody.length];
+      const bassNote = currentChord[0] / 2;
+
+      const now = actx.currentTime;
+
+      // 1. Arpeggio Voice (gentle rolling 16th notes)
+      const arpOsc = actx.createOscillator();
+      const arpGain = actx.createGain();
+      arpOsc.type = 'triangle';
+      arpOsc.frequency.setValueAtTime(arpNote, now);
+      arpGain.gain.setValueAtTime(0.08, now);
+      arpGain.gain.exponentialRampToValueAtTime(0.001, now + stepDuration * 0.9);
+      arpOsc.connect(arpGain);
+      arpGain.connect(this.masterGain);
+      arpOsc.start(now);
+      arpOsc.stop(now + stepDuration);
+
+      // 2. Bass Voice (on beats 0 and 2 of each chord)
+      if (this.stepIndex % 4 === 0) {
+        const bassOsc = actx.createOscillator();
+        const bassGain = actx.createGain();
+        bassOsc.type = 'sine';
+        bassOsc.frequency.setValueAtTime(bassNote, now);
+        bassGain.gain.setValueAtTime(0.18, now);
+        bassGain.gain.exponentialRampToValueAtTime(0.01, now + stepDuration * 3.8);
+        bassOsc.connect(bassGain);
+        bassGain.connect(this.masterGain);
+        bassOsc.start(now);
+        bassOsc.stop(now + stepDuration * 4);
+      }
+
+      // 3. Lead Melody Voice (every 2 steps)
+      if (this.stepIndex % 2 === 0) {
+        const leadOsc = actx.createOscillator();
+        const leadGain = actx.createGain();
+        leadOsc.type = isDramatic ? 'sawtooth' : 'triangle';
+        leadOsc.frequency.setValueAtTime(leadNote, now);
+        leadGain.gain.setValueAtTime(0.07, now);
+        leadGain.gain.exponentialRampToValueAtTime(0.001, now + stepDuration * 1.8);
+        leadOsc.connect(leadGain);
+        leadGain.connect(this.masterGain);
+        leadOsc.start(now);
+        leadOsc.stop(now + stepDuration * 2);
+      }
+
+      this.stepIndex++;
+    }, stepDuration * 1000);
+  }
+
+  public setVolume(vol: number): void {
+    if (this.masterGain && this.getContext()) {
+      const actx = this.getContext()!;
+      this.masterGain.gain.setValueAtTime(vol, actx.currentTime);
+    }
+  }
+
+  public stop(): void {
+    this.isPlaying = false;
+    if (this.stepInterval) {
+      clearInterval(this.stepInterval);
+      this.stepInterval = null;
+    }
+    if (this.masterGain) {
+      try {
+        this.masterGain.disconnect();
+      } catch {}
+      this.masterGain = null;
+    }
+  }
+}
+
 class SoundSystem {
   private ctx: AudioContext | null = null;
   public muted = false;
   public bgmMuted = false;
   private bgmAudio: HTMLAudioElement | null = null;
+  private synth: RetroSynthesizer;
   private bgmVolume = 0.28;
   private currentChapter = 1;
 
   constructor() {
+    this.synth = new RetroSynthesizer(() => this.getContext());
     if (typeof window !== 'undefined') {
-      const savedMute = localStorage.getItem('germanen_bgm_muted');
+      const savedMute = localStorage.getItem('snes_bgm_muted') ?? localStorage.getItem('germanen_bgm_muted');
       if (savedMute !== null) this.bgmMuted = savedMute === 'true';
-      const savedVol = localStorage.getItem('germanen_bgm_vol');
+      const savedVol = localStorage.getItem('snes_bgm_vol') ?? localStorage.getItem('germanen_bgm_vol');
       if (savedVol !== null) {
         const v = parseFloat(savedVol);
         if (!isNaN(v)) this.bgmVolume = Math.max(0, Math.min(1, v));
@@ -41,11 +170,12 @@ class SoundSystem {
   public setVolume(val: number): void {
     this.bgmVolume = Math.max(0, Math.min(1, val));
     if (typeof window !== 'undefined') {
-      localStorage.setItem('germanen_bgm_vol', String(this.bgmVolume));
+      localStorage.setItem('snes_bgm_vol', String(this.bgmVolume));
     }
     if (this.bgmAudio) {
       this.bgmAudio.volume = this.bgmMuted ? 0 : this.bgmVolume;
     }
+    this.synth.setVolume(this.bgmMuted ? 0 : this.bgmVolume * 0.8);
   }
 
   public getChapterTrackInfo(chapter = 1): { path: string; title: string; subtitle: string } {
@@ -101,7 +231,7 @@ class SoundSystem {
     if (this.bgmAudio) {
       if (this.bgmAudio.src.endsWith(track.path)) {
         if (this.bgmAudio.paused && !this.bgmMuted) {
-          this.bgmAudio.play().catch(() => {});
+          this.bgmAudio.play().catch(() => this.playSynthBGM(chapter));
         }
         return;
       }
@@ -113,29 +243,42 @@ class SoundSystem {
       this.bgmAudio = new Audio(track.path);
       this.bgmAudio.loop = true;
       this.bgmAudio.volume = this.bgmMuted ? 0 : this.bgmVolume;
+      this.bgmAudio.onerror = () => {
+        // Fallback to procedural 16-Bit chiptune synth if MP3 not found
+        this.playSynthBGM(chapter);
+      };
       const playPromise = this.bgmAudio.play();
       if (playPromise) {
         playPromise.catch(() => {
-          // Auto-play was prevented; will resume on first user interaction
+          // If browser blocks audio, synth is ready on user gesture
         });
       }
     } catch {
-      // Audio load error ignored
+      this.playSynthBGM(chapter);
     }
+  }
+
+  public playSynthBGM(chapter = 1): void {
+    if (this.bgmMuted) return;
+    this.synth.start(chapter, this.bgmVolume * 0.8);
   }
 
   public toggleBGM(): boolean {
     this.bgmMuted = !this.bgmMuted;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('germanen_bgm_muted', String(this.bgmMuted));
+      localStorage.setItem('snes_bgm_muted', String(this.bgmMuted));
     }
     if (this.bgmAudio) {
       this.bgmAudio.volume = this.bgmMuted ? 0 : this.bgmVolume;
       if (!this.bgmMuted && this.bgmAudio.paused) {
-        this.bgmAudio.play().catch(() => {});
+        this.bgmAudio.play().catch(() => this.playSynthBGM(this.currentChapter));
       }
     } else if (!this.bgmMuted) {
       this.playBGM(this.currentChapter);
+    }
+
+    if (this.bgmMuted) {
+      this.synth.stop();
     }
     return !this.bgmMuted;
   }
@@ -145,6 +288,7 @@ class SoundSystem {
       this.bgmAudio.pause();
       this.bgmAudio.currentTime = 0;
     }
+    this.synth.stop();
   }
 
   // --- 16-BIT RETRO WEBAUDIO SOUND SYNTHESIZER ---
