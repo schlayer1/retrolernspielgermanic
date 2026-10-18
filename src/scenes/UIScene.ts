@@ -32,6 +32,7 @@ export class UIScene extends Phaser.Scene {
   private questBox!: HTMLDivElement;
   private modalOverlay!: HTMLDivElement;
   private toastContainer!: HTMLDivElement;
+  private compassEl: HTMLElement | null = null;
 
   private lexiconSearch = '';
   private lexiconCategory = 'Alle';
@@ -235,15 +236,24 @@ export class UIScene extends Phaser.Scene {
     const ch = CHAPTERS.find((c) => c.id === gameState.chapter) || CHAPTERS[0];
     const objs = gameState.chapterObjectives[ch.id] || [false, false, false, false];
     const completedCount = objs.filter((x) => x).length;
+    const activeIdx = objs.findIndex((done) => !done);
+
+    const taskText =
+      activeIdx === -1
+        ? `Alle Aufgaben gemeistert! Sprich mit ${ch.mentorName} für das Kapitel-Quiz (E).`
+        : ch.hints[activeIdx] || ch.questDescription;
 
     this.questBox.innerHTML = `
       <div class="quest-header">
         <span class="quest-title-icon">⚔️</span>
-        <span class="quest-title-text">${ch.subtitle}</span>
+        <span class="quest-title-text">${ch.title} · ${ch.year}</span>
         <span class="quest-counter ${completedCount === 4 ? 'quest-done' : ''}">${completedCount}/4</span>
       </div>
-      <div class="quest-desc">${ch.questDescription}</div>
-      <div class="quest-objectives-list">
+      <div class="hud-active-task">
+        <strong>Aufgabe:</strong> ${taskText}
+      </div>
+      <div class="hud-compass" id="hud-compass">${gameState.compassText}</div>
+      <div class="quest-objectives-list" style="margin-top: 6px;">
         ${ch.hints
           .map(
             (hint, i) => `
@@ -256,6 +266,19 @@ export class UIScene extends Phaser.Scene {
           .join('')}
       </div>
     `;
+
+    this.compassEl = this.questBox.querySelector('#hud-compass');
+  }
+
+  update(): void {
+    if (this.compassEl) {
+      if (gameState.compassText) {
+        this.compassEl.style.display = 'block';
+        this.compassEl.textContent = gameState.compassText;
+      } else {
+        this.compassEl.style.display = 'none';
+      }
+    }
   }
 
   // =========================================================================
@@ -468,6 +491,7 @@ export class UIScene extends Phaser.Scene {
       const ch = CHAPTERS.find((c) => c.id === gameState.chapter) || CHAPTERS[0];
       this.renderDialogStep(ch);
     } else {
+      gameState.setObjective(gameState.chapter, 0, true);
       this.closeModal();
     }
   }
@@ -486,7 +510,6 @@ export class UIScene extends Phaser.Scene {
     if (!q) {
       // Quiz complete!
       sound.playQuest();
-      gameState.setObjective(ch.id, 3, true);
       gameState.unlockChapter(ch.id + 1);
       this.showNotification(`🎉 Kapitel ${ch.id} gemeistert!`);
       this.closeModal();
@@ -589,6 +612,11 @@ export class UIScene extends Phaser.Scene {
     if (isCorrect) {
       sound.playRelic();
       gameState.markRelicDiscovered(this.activeRelic.id);
+      if (this.activeRelic.id === 'relic_pflugschar') {
+        gameState.setObjective(1, 3, true);
+      } else if (this.activeRelic.id === 'relic_kalkriese_reitermaske') {
+        gameState.setObjective(6, 3, true);
+      }
       this.showNotification(`✨ Relikt geborgen: ${this.activeRelic.name}`);
       this.modalOverlay.innerHTML = `
         <div class="modal-card quiz-feedback-modal correct">

@@ -10,7 +10,7 @@ import { LivingWorldManager } from '../world/LivingWorldManager';
 
 interface InteractiveTarget {
   id: string;
-  kind: 'mentor' | 'resource' | 'relic' | 'portal' | 'trader' | 'building_plot';
+  kind: 'mentor' | 'resource' | 'relic' | 'portal' | 'trader' | 'building_plot' | 'interactive_quest';
   name: string;
   sub: string;
   x: number;
@@ -19,6 +19,10 @@ interface InteractiveTarget {
   itemId?: GermanItemId;
   relic?: GermanRelic;
   buildingId?: string;
+  questChapter?: number;
+  questObjectiveIndex?: number;
+  questMessage?: string;
+  actionTip?: string;
 }
 
 export class WorldScene extends Phaser.Scene {
@@ -94,6 +98,7 @@ export class WorldScene extends Phaser.Scene {
     const texKey = gameState.gender === 'female' ? 'player_alrun' : 'player_folkmar';
     this.player = this.add
       .sprite(gameState.playerX, gameState.playerY, texKey, 0)
+      .setOrigin(0.5, 0.9)
       .setDepth(gameState.playerY);
     this.livingWorldManager.registerPlayer(this.player);
 
@@ -506,8 +511,7 @@ export class WorldScene extends Phaser.Scene {
     this.livingWorldManager.registerFlora(oak);
 
     // Dolmen altar north of the stone circle (y=47)
-    const dolmen = this.add.image(50 * 16, 47 * 16, 'sacred_dolmen_portal').setOrigin(0.5, 0.9).setScale(0.7).setDepth(47 * 16);
-    this.livingWorldManager.registerMysticalProp(dolmen);
+    this.add.image(50 * 16, 47 * 16, 'sacred_dolmen_portal').setOrigin(0.5, 0.9).setScale(0.7).setDepth(47 * 16);
 
     // Thing stone circle in center of glade (y=54)
     this.add.image(50 * 16, 54 * 16, 'thing_stone_circle').setOrigin(0.5, 0.9).setScale(0.75).setDepth(54 * 16);
@@ -516,21 +520,19 @@ export class WorldScene extends Phaser.Scene {
     this.add.image(50 * 16, 61 * 16, 'sacred_fire_ring').setOrigin(0.5, 0.9).setScale(0.65).setDepth(61 * 16);
     this.livingWorldManager.registerFireSource(50 * 16, 61 * 16, true, 46, 0xfb923c);
 
-    // Flanking sacred runestones
+    // Flanking sacred runestones (Runestones maintain their mystical rune glow)
     const runeBlue = this.add.image(43 * 16, 54 * 16, 'runestone_standing_blue').setOrigin(0.5, 0.9).setScale(0.55).setDepth(54 * 16);
     this.livingWorldManager.registerMysticalProp(runeBlue);
 
     const runeGreen = this.add.image(57 * 16, 54 * 16, 'runestone_standing_green').setOrigin(0.5, 0.9).setScale(0.55).setDepth(54 * 16);
     this.livingWorldManager.registerMysticalProp(runeGreen);
 
-    // 4. WALDGIRMES ROMAN TRADING POST & FORUM (Southwest)
-    const romanCanopy = this.add.image(22 * 16, 48 * 16, 'roman_trader_canopy').setOrigin(0.5, 0.9).setDepth(48 * 16);
-    this.livingWorldManager.registerBanner(romanCanopy);
+    // 4. WALDGIRMES ROMAN TRADING POST & FORUM (Southwest) - Solid architecture, no pillar swaying!
+    this.add.image(22 * 16, 48 * 16, 'roman_trader_canopy').setOrigin(0.5, 0.9).setDepth(48 * 16);
     this.add.image(26 * 16, 50 * 16, 'roman_forum_market').setOrigin(0.5, 0.9).setDepth(50 * 16);
 
     // 5. SACRED MOOR & SANCTUARY OF NERTHUS (East)
-    const altar = this.add.image(74 * 16, 42 * 16, 'sacrificial_altar_carved').setOrigin(0.5, 0.9).setDepth(42 * 16);
-    this.livingWorldManager.registerMysticalProp(altar);
+    this.add.image(74 * 16, 42 * 16, 'sacrificial_altar_carved').setOrigin(0.5, 0.9).setDepth(42 * 16);
 
     this.add.image(78 * 16, 40 * 16, 'carved_wooden_god_idol').setOrigin(0.5, 0.9).setDepth(40 * 16);
     this.add.image(70 * 16, 44 * 16, 'braak_totem_pole').setOrigin(0.5, 0.9).setDepth(44 * 16);
@@ -718,6 +720,257 @@ export class WorldScene extends Phaser.Scene {
         });
       }
     });
+
+    // 5. Chapter-Specific Interactive Quest Objectives (Ensures 100% playable quests without missing targets)
+    if (ch === 1) {
+      this.targets.push({
+        id: 'pfahlspeicher_ch1',
+        kind: 'interactive_quest',
+        name: 'Pfahlspeicher (Erntelager)',
+        sub: '[E] Pfahlspeicher inspizieren & Ernte sichern',
+        x: 41 * 16,
+        y: 17 * 16,
+        minChapter: 1,
+        questChapter: 1,
+        questObjectiveIndex: 2,
+        questMessage: '🌾 Pfahlspeicher inspiziert: Spelzweizen und Emmer lagern sicher vor Mäusen und Feuchte!',
+      });
+    } else if (ch === 2) {
+      this.targets.push({
+        id: 'rennofen_bellows_ch2',
+        kind: 'interactive_quest',
+        name: 'Rennofen-Schmelze',
+        sub: '[E] Blasebalg bedienen & Schlacke ablassen',
+        x: 48 * 16,
+        y: 33 * 16,
+        minChapter: 2,
+        questChapter: 2,
+        questObjectiveIndex: 2,
+        questMessage: '🔥 Blasebalg bedient: Die Glut erreicht 1100°C – flüssige Schlacke rinnt heraus!',
+      });
+      this.targets.push({
+        id: 'schmiede_forge_ch2',
+        kind: 'interactive_quest',
+        name: 'Schmiede-Werkstatt (Esse)',
+        sub: '[E] Werkstatt öffnen & Fibel schmieden [C]',
+        x: 46 * 16,
+        y: 38 * 16,
+        minChapter: 2,
+        questChapter: 2,
+        questObjectiveIndex: 3,
+        questMessage: '⚒️ Schmiede geöffnet! Drücke Taste [C], um deine erste bronzene Fibel zu fertigen.',
+      });
+    } else if (ch === 3) {
+      this.targets.push({
+        id: 'waldgirmes_trader_ch3',
+        kind: 'interactive_quest',
+        name: 'Römischer Handelsstand',
+        sub: '[E] Handel öffnen & Terra Sigillata tauschen [T]',
+        x: 22 * 16,
+        y: 48 * 16,
+        minChapter: 3,
+        questChapter: 3,
+        questObjectiveIndex: 1,
+        questMessage: '🏺 Handelsstand erreicht! Drücke Taste [T], um Bernstein gegen Terra Sigillata zu tauschen.',
+      });
+      this.targets.push({
+        id: 'roman_denarii_ch3',
+        kind: 'interactive_quest',
+        name: 'Römische Geldkiste',
+        sub: '[E] Augustus-Denare begutachten',
+        x: 24 * 16,
+        y: 50 * 16,
+        minChapter: 3,
+        questChapter: 3,
+        questObjectiveIndex: 2,
+        questMessage: '🪙 Augustus-Denare untersucht: Reines Silber mit Porträt des Kaisers aus Rom!',
+      });
+      this.targets.push({
+        id: 'waldgirmes_forum_ch3',
+        kind: 'interactive_quest',
+        name: 'Forum von Waldgirmes',
+        sub: '[E] Römerstadt Waldgirmes kartieren',
+        x: 26 * 16,
+        y: 50 * 16,
+        minChapter: 3,
+        questChapter: 3,
+        questObjectiveIndex: 3,
+        questMessage: '🏛️ Forum kartiert: Ein ziviles Verwaltungs- und Handelszentrum mitten im freien Germanien!',
+      });
+    } else if (ch === 4) {
+      this.targets.push({
+        id: 'thing_hasel_peace_ch4',
+        kind: 'interactive_quest',
+        name: 'Haselstangen-Waffengrenze',
+        sub: '[E] Waffen ablegen (Thingfrieden)',
+        x: 48 * 16,
+        y: 54 * 16,
+        minChapter: 4,
+        questChapter: 4,
+        questObjectiveIndex: 1,
+        questMessage: '🗡️ Thingfrieden ausgerufen: Alle freien Männer haben ihre Klingen an den Haselstangen niedergelegt!',
+      });
+      this.targets.push({
+        id: 'thing_witnesses_ch4',
+        kind: 'interactive_quest',
+        name: 'Zeugenbank am Thing',
+        sub: '[E] Zeugenaussage zum Ochsendiebstahl anhören',
+        x: 52 * 16,
+        y: 54 * 16,
+        minChapter: 4,
+        questChapter: 4,
+        questObjectiveIndex: 2,
+        questMessage: '⚖️ Zeugenaussagen geprüft: Der Streit um die Zugochsen ist aufgeklärt!',
+      });
+      this.targets.push({
+        id: 'thing_verdict_ch4',
+        kind: 'interactive_quest',
+        name: 'Thingstein (Richtplatz)',
+        sub: '[E] Wergeld-Urteil anstimmen (Schildklirren)',
+        x: 50 * 16,
+        y: 54 * 16,
+        minChapter: 4,
+        questChapter: 4,
+        questObjectiveIndex: 3,
+        questMessage: '🛡️ Wergeld verkündet! Die Thingversammlung schlägt die Schilde – Urteil durch Akklamation bestätigt!',
+      });
+    } else if (ch === 5) {
+      this.targets.push({
+        id: 'moor_bohlenweg_ch5',
+        kind: 'interactive_quest',
+        name: 'Moor-Bohlenweg',
+        sub: '[E] Eichenbohlen am Moorsteg befestigen',
+        x: 68 * 16,
+        y: 44 * 16,
+        minChapter: 5,
+        questChapter: 5,
+        questObjectiveIndex: 1,
+        questMessage: '🪵 Bohlenweg repariert: Der Holzsteg zur Opferplattform ist stabil und passierbar!',
+      });
+      this.targets.push({
+        id: 'nerthus_altar_ch5',
+        kind: 'interactive_quest',
+        name: 'Opferaltar der Nerthus',
+        sub: '[E] Votiv-Holzidol & Spelzweizen weihen',
+        x: 74 * 16,
+        y: 42 * 16,
+        minChapter: 5,
+        questChapter: 5,
+        questObjectiveIndex: 2,
+        questMessage: '🌿 Fruchtbarkeitsopfer dargebracht: Mutter Erde Nerthus ist gewogen!',
+      });
+      this.targets.push({
+        id: 'futhark_runes_ch5',
+        kind: 'interactive_quest',
+        name: 'Futhark-Runenstein',
+        sub: '[E] Zeichen des Älteren Futhark entziffern',
+        x: 76 * 16,
+        y: 44 * 16,
+        minChapter: 5,
+        questChapter: 5,
+        questObjectiveIndex: 3,
+        questMessage: 'ᚠ ᚢ ᚦ ᚨ ᚱ ᚲ Runen entziffert: Fehu (Wohlstand), Uruz (Urkraft), Ansuz (Götterrat)!',
+      });
+    } else if (ch === 6) {
+      this.targets.push({
+        id: 'kalkriese_wall_ch6',
+        kind: 'interactive_quest',
+        name: 'Rasensodenwall Kalkriese',
+        sub: '[E] Wall mit Grassoden verstärken',
+        x: 78 * 16,
+        y: 18 * 16,
+        minChapter: 6,
+        questChapter: 6,
+        questObjectiveIndex: 1,
+        questMessage: '🧱 Wall befestigt: Der Rasensodenwall am Engpass schützt die Krieger vor römischen Geschossen!',
+      });
+      this.targets.push({
+        id: 'kalkriese_supplies_ch6',
+        kind: 'interactive_quest',
+        name: 'Sanitäts- & Proviantlager',
+        sub: '[E] Trinkwasser & Wundsalben verteilen',
+        x: 76 * 16,
+        y: 18 * 16,
+        minChapter: 6,
+        questChapter: 6,
+        questObjectiveIndex: 2,
+        questMessage: '🩹 Nachschub gesichert: Trinkwasser und Kräutersalben versorgen die Sippenmitglieder!',
+      });
+    } else if (ch === 7) {
+      this.targets.push({
+        id: 'limes_barrier_ch7',
+        kind: 'interactive_quest',
+        name: 'Limes-Schlagbaum & Grenztor',
+        sub: '[E] Zollerklärung & Passierschein prüfen',
+        x: 22 * 16,
+        y: 66 * 16,
+        minChapter: 7,
+        questChapter: 7,
+        questObjectiveIndex: 1,
+        questMessage: '📜 Zollkontrolle durchgeführt: Warenströme und Viehlieferungen sind registriert!',
+      });
+      this.targets.push({
+        id: 'limes_signal_ch7',
+        kind: 'interactive_quest',
+        name: 'Wachturm-Signalposten',
+        sub: '[E] Fackel- & Rauchsignal übermitteln',
+        x: 24 * 16,
+        y: 64 * 16,
+        minChapter: 7,
+        questChapter: 7,
+        questObjectiveIndex: 2,
+        questMessage: '📡 Signalfeuer entzündet: Die Kette der Wachtürme bestätigt die freie Grenze!',
+      });
+      this.targets.push({
+        id: 'limes_brick_ch7',
+        kind: 'interactive_quest',
+        name: 'Legionsziegel-Lager',
+        sub: '[E] Römischen Ziegelstempel entziffern',
+        x: 28 * 16,
+        y: 66 * 16,
+        minChapter: 7,
+        questChapter: 7,
+        questObjectiveIndex: 3,
+        questMessage: '🏛️ Stempel dokumentiert: LEG VIII AVG belegt die Bautätigkeit der 8. Legion!',
+      });
+    } else if (ch === 8) {
+      this.targets.push({
+        id: 'foederati_fibel_ch8',
+        kind: 'interactive_quest',
+        name: 'Goldene Runen-Bügelfibel',
+        sub: '[E] Runeninschrift auf der Prachtfibel entziffern',
+        x: 56 * 16,
+        y: 68 * 16,
+        minChapter: 8,
+        questChapter: 8,
+        questObjectiveIndex: 1,
+        questMessage: '🦅 Runeninschrift dechiffriert: Das Bündniszeichen der Franken für Frieden und Treue!',
+      });
+      this.targets.push({
+        id: 'rhine_pontoon_ch8',
+        kind: 'interactive_quest',
+        name: 'Rhein-Pontonbrücke',
+        sub: '[E] Sippentreck über den Strom leiten',
+        x: 62 * 16,
+        y: 66 * 16,
+        minChapter: 8,
+        questChapter: 8,
+        questObjectiveIndex: 2,
+        questMessage: '🌊 Sippentreck geleitet: Familie und Vieh haben das Föderatengebiet sicher erreicht!',
+      });
+      this.targets.push({
+        id: 'diploma_council_ch8',
+        kind: 'interactive_quest',
+        name: 'Föderaten-Praetorium',
+        sub: '[E] Abschluss-Thing abhalten & Meisterdiplom öffnen [U]',
+        x: 58 * 16,
+        y: 66 * 16,
+        minChapter: 8,
+        questChapter: 8,
+        questObjectiveIndex: 3,
+        questMessage: '👑 Höchste Ehre der Sippe! Drücke [U], um dein Chronisten-Diplom zu bewundern!',
+      });
+    }
   }
 
   // =========================================================================
@@ -729,6 +982,7 @@ export class WorldScene extends Phaser.Scene {
     this.wildlifeManager.update(delta, this.player.x, this.player.y);
     this.livingWorldManager.update(delta, this.player.x, this.player.y, isMoving);
     this.updateInteractiveProximity();
+    this.updateQuestCompass();
   }
 
   private handleMovement(delta: number): boolean {
@@ -817,6 +1071,8 @@ export class WorldScene extends Phaser.Scene {
 
     if (t.kind === 'mentor') {
       sound.playClick();
+      // Speaking with mentor marks objective 0
+      gameState.setObjective(gameState.chapter, 0, true);
       ui?.showMentorDialog(gameState.chapter);
     } else if (t.kind === 'resource' && t.itemId) {
       sound.playCollect();
@@ -826,12 +1082,22 @@ export class WorldScene extends Phaser.Scene {
         gameState.setObjective(1, 1, true);
       } else if (gameState.chapter === 2 && t.itemId === 'raseneisenerz') {
         gameState.setObjective(2, 0, true);
+      } else if (gameState.chapter === 2 && t.itemId === 'holzkohle') {
+        gameState.setObjective(2, 1, true);
       } else if (gameState.chapter === 3 && t.itemId === 'bernstein') {
         gameState.setObjective(3, 0, true);
       } else if (gameState.chapter === 6 && t.itemId === 'rasensode') {
         gameState.setObjective(6, 1, true);
       }
       ui?.showNotification(`+2 ${GERMAN_ITEMS[t.itemId].name} erhalten!`);
+    } else if (t.kind === 'interactive_quest') {
+      sound.playQuest();
+      if (t.questChapter !== undefined && t.questObjectiveIndex !== undefined) {
+        gameState.setObjective(t.questChapter, t.questObjectiveIndex, true);
+      }
+      if (t.questMessage) {
+        ui?.showNotification(t.questMessage);
+      }
     } else if (t.kind === 'relic' && t.relic) {
       sound.playRelic();
       ui?.showRelicQuizModal(t.relic);
@@ -839,6 +1105,125 @@ export class WorldScene extends Phaser.Scene {
       sound.playCraft();
       ui?.showBuildingModal(t.buildingId);
     }
+  }
+
+  // =========================================================================
+  // REALTIME QUEST COMPASS / RADAR (8-POINT DIRECTION & METERS DISTANCE)
+  // =========================================================================
+  private updateQuestCompass(): void {
+    const ch = gameState.chapter;
+    const objs = gameState.chapterObjectives[ch] || [false, false, false, false];
+    const activeIdx = objs.findIndex((done) => !done);
+
+    let targetX = 0;
+    let targetY = 0;
+    let label = '';
+    let actionTip = '(drücke E)';
+
+    const mentor = this.mentorCoords[ch];
+
+    if (activeIdx === -1) {
+      // All 4 objectives done! Head to mentor for quiz!
+      if (mentor) {
+        targetX = mentor.x * 16;
+        targetY = mentor.y * 16;
+        label = mentor.name;
+        actionTip = '(Kapitel-Quiz starten!)';
+        gameState.activeObjectiveText = `Alle Aufgaben gemeistert! Sprich mit ${mentor.name} für das Kapitel-Quiz (E).`;
+      }
+    } else {
+      const chData = CHAPTERS.find((c) => c.id === ch) || CHAPTERS[0];
+      gameState.activeObjectiveText = chData.hints[activeIdx] || chData.questDescription;
+
+      const t = this.getObjectiveTargetCoords(ch, activeIdx);
+      if (t) {
+        targetX = t.x;
+        targetY = t.y;
+        label = t.name;
+        if (t.actionTip) actionTip = t.actionTip;
+      } else if (mentor) {
+        targetX = mentor.x * 16;
+        targetY = mentor.y * 16;
+        label = mentor.name;
+      }
+    }
+
+    if (!targetX && !targetY) {
+      gameState.compassText = '';
+      return;
+    }
+
+    const dx = targetX - this.player.x;
+    const dy = targetY - this.player.y;
+    const distPx = Math.hypot(dx, dy);
+
+    if (distPx < 32) {
+      gameState.compassText = `📍 Ziel direkt vor dir: ${label} ${actionTip}`;
+      return;
+    }
+
+    const meters = Math.max(2, Math.round(distPx / 8));
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI); // -180..180, 0 = Ost, -90 = Nord, 90 = Süd
+
+    let dirStr = '→ Osten';
+    if (angle >= -112.5 && angle < -67.5) dirStr = '↑ Norden';
+    else if (angle >= -67.5 && angle < -22.5) dirStr = '↗ Nordosten';
+    else if (angle >= -22.5 && angle < 22.5) dirStr = '→ Osten';
+    else if (angle >= 22.5 && angle < 67.5) dirStr = '↘ Südosten';
+    else if (angle >= 67.5 && angle < 112.5) dirStr = '↓ Süden';
+    else if (angle >= 112.5 && angle < 157.5) dirStr = '↙ Südwesten';
+    else if (angle >= -157.5 && angle < -112.5) dirStr = '↖ Nordwesten';
+    else dirStr = '← Westen';
+
+    gameState.compassText = `🧭 ${label}: ${dirStr} (${meters} m)`;
+  }
+
+  private getObjectiveTargetCoords(
+    ch: number,
+    objIdx: number
+  ): { x: number; y: number; name: string; actionTip?: string } | null {
+    if (ch === 1) {
+      if (objIdx === 0) return { x: 34 * 16, y: 30 * 16, name: 'Walburg (Dorfplatz)' };
+      if (objIdx === 1) return { x: 30 * 16, y: 34 * 16, name: 'Wiesen-Heulager' };
+      if (objIdx === 2) return { x: 41 * 16, y: 17 * 16, name: 'Pfahlspeicher (Erntelager)' };
+      if (objIdx === 3) return { x: 28 * 16, y: 21 * 16, name: 'Eiserne Pflugschar (Acker)' };
+    } else if (ch === 2) {
+      if (objIdx === 0) return { x: 52 * 16, y: 36 * 16, name: 'Raseneisenerz-Moorlager' };
+      if (objIdx === 1) return { x: 52 * 16, y: 32 * 16, name: 'Köhler-Meiler' };
+      if (objIdx === 2) return { x: 48 * 16, y: 33 * 16, name: 'Rennofen-Schmelze' };
+      if (objIdx === 3) return { x: 46 * 16, y: 38 * 16, name: 'Schmiede-Werkstatt', actionTip: '(drücke C)' };
+    } else if (ch === 3) {
+      if (objIdx === 0) return { x: 22 * 16, y: 50 * 16, name: 'Marcus Licinius (Handelssteg)' };
+      if (objIdx === 1) return { x: 22 * 16, y: 48 * 16, name: 'Römischer Handelsstand', actionTip: '(drücke T)' };
+      if (objIdx === 2) return { x: 24 * 16, y: 50 * 16, name: 'Römische Geldkiste' };
+      if (objIdx === 3) return { x: 26 * 16, y: 50 * 16, name: 'Forum von Waldgirmes' };
+    } else if (ch === 4) {
+      if (objIdx === 0) return { x: 50 * 16, y: 56 * 16, name: 'Gesetzessprecher Hagano' };
+      if (objIdx === 1) return { x: 48 * 16, y: 54 * 16, name: 'Haselstangen (Thingfrieden)' };
+      if (objIdx === 2) return { x: 52 * 16, y: 54 * 16, name: 'Zeugenbank am Thing' };
+      if (objIdx === 3) return { x: 50 * 16, y: 54 * 16, name: 'Thingstein (Richtplatz)' };
+    } else if (ch === 5) {
+      if (objIdx === 0) return { x: 74 * 16, y: 44 * 16, name: 'Seherin Albruna' };
+      if (objIdx === 1) return { x: 68 * 16, y: 44 * 16, name: 'Moor-Bohlenweg' };
+      if (objIdx === 2) return { x: 74 * 16, y: 42 * 16, name: 'Opferaltar der Nerthus' };
+      if (objIdx === 3) return { x: 76 * 16, y: 44 * 16, name: 'Futhark-Runenstein' };
+    } else if (ch === 6) {
+      if (objIdx === 0) return { x: 78 * 16, y: 20 * 16, name: 'Cheruskerfürst Arminius' };
+      if (objIdx === 1) return { x: 78 * 16, y: 18 * 16, name: 'Rasensodenwall Kalkriese' };
+      if (objIdx === 2) return { x: 76 * 16, y: 18 * 16, name: 'Sanitäts- & Proviantlager' };
+      if (objIdx === 3) return { x: 80 * 16, y: 18 * 16, name: 'Kalkriese-Reitermaske' };
+    } else if (ch === 7) {
+      if (objIdx === 0) return { x: 24 * 16, y: 66 * 16, name: 'Auxiliarsoldat Flavus' };
+      if (objIdx === 1) return { x: 22 * 16, y: 66 * 16, name: 'Limes-Schlagbaum & Zoll' };
+      if (objIdx === 2) return { x: 24 * 16, y: 64 * 16, name: 'Wachturm-Signalposten' };
+      if (objIdx === 3) return { x: 28 * 16, y: 66 * 16, name: 'Römischer Ziegelstempel' };
+    } else if (ch === 8) {
+      if (objIdx === 0) return { x: 58 * 16, y: 68 * 16, name: 'Frankenführer Chlodio' };
+      if (objIdx === 1) return { x: 56 * 16, y: 68 * 16, name: 'Goldene Runen-Bügelfibel' };
+      if (objIdx === 2) return { x: 62 * 16, y: 66 * 16, name: 'Rhein-Pontonbrücke' };
+      if (objIdx === 3) return { x: 58 * 16, y: 66 * 16, name: 'Föderaten-Praetorium', actionTip: '(drücke U)' };
+    }
+    return null;
   }
 
   private renderDOMInteractiveLabel(target: InteractiveTarget | null): void {

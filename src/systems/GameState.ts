@@ -74,6 +74,10 @@ export class GameState {
     8: [false, false, false, false],
   };
 
+  // Realtime Quest Compass / Radar
+  public compassText = '';
+  public activeObjectiveText = '';
+
   private listeners: Listener[] = [];
 
   constructor() {

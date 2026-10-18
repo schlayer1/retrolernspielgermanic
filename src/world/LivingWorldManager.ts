@@ -168,11 +168,12 @@ export class LivingWorldManager {
     if (!img) return;
     this.bannerSprites.push(img);
 
+    // Gentle fabric flutter for textile vexilla
     this.scene.tweens.add({
       targets: img,
-      angle: { from: -2.5, to: 2.5 },
-      scaleX: { from: 0.98, to: 1.02 },
-      duration: 1600 + Math.random() * 600,
+      angle: { from: -0.6, to: 0.6 },
+      scaleX: { from: 0.99, to: 1.01 },
+      duration: 1800 + Math.random() * 400,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
@@ -257,27 +258,11 @@ export class LivingWorldManager {
     this.smokeTimer += delta;
     this.waterTimer += delta;
 
-    // A. Player Idle Breathing state sync
-    if (this.playerSprite) {
-      if (playerMoving && !this.playerPrevMoving) {
-        // Player started moving: stop idle tween
-        if (this.playerIdleTween) {
-          this.playerIdleTween.stop();
-          this.playerIdleTween = null;
-        }
-        this.playerSprite.setScale(1, 1);
-      } else if (!playerMoving && this.playerPrevMoving) {
-        // Player stopped moving: start subtle breathing
-        this.playerIdleTween = this.scene.tweens.add({
-          targets: this.playerSprite,
-          scaleY: { from: 0.98, to: 1.0 },
-          duration: 1200,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-      }
-      this.playerPrevMoving = playerMoving;
+    // A. Player sprite stability (crisp 16-bit pixel alignment without floating feet)
+    if (this.playerSprite && this.playerIdleTween) {
+      this.playerIdleTween.stop();
+      this.playerIdleTween = null;
+      this.playerSprite.setScale(1, 1);
     }
 
     // B. Spawn rising smoke puffs from active fire sources

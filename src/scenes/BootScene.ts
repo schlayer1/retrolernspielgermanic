@@ -172,52 +172,22 @@ export class BootScene extends Phaser.Scene {
     ];
 
     characters.forEach((charKey) => {
-      // 0..3: Down, 4..7: Right, 8..11: Up, 12..15: Left
-      this.anims.create({
-        key: `${charKey}_walk_down`,
-        frames: this.anims.generateFrameNumbers(charKey, { start: 0, end: 3 }),
-        frameRate: 8,
-        repeat: -1,
-      });
-      this.anims.create({
-        key: `${charKey}_walk_right`,
-        frames: this.anims.generateFrameNumbers(charKey, { start: 4, end: 7 }),
-        frameRate: 8,
-        repeat: -1,
-      });
-      this.anims.create({
-        key: `${charKey}_walk_up`,
-        frames: this.anims.generateFrameNumbers(charKey, { start: 8, end: 11 }),
-        frameRate: 8,
-        repeat: -1,
-      });
-      this.anims.create({
-        key: `${charKey}_walk_left`,
-        frames: this.anims.generateFrameNumbers(charKey, { start: 12, end: 15 }),
-        frameRate: 8,
-        repeat: -1,
-      });
-
-      // Idles
-      this.anims.create({
-        key: `${charKey}_idle_down`,
-        frames: [{ key: charKey, frame: 0 }],
-        frameRate: 1,
-      });
-      this.anims.create({
-        key: `${charKey}_idle_right`,
-        frames: [{ key: charKey, frame: 4 }],
-        frameRate: 1,
-      });
-      this.anims.create({
-        key: `${charKey}_idle_up`,
-        frames: [{ key: charKey, frame: 8 }],
-        frameRate: 1,
-      });
-      this.anims.create({
-        key: `${charKey}_idle_left`,
-        frames: [{ key: charKey, frame: 12 }],
-        frameRate: 1,
+      // 272x256 LPC format: 16x32 frame size, exactly 17 frames per row
+      // Row 0: Down (start: 0), Row 1: Right (start: 17), Row 2: Up (start: 34), Row 3: Left (start: 51)
+      const dirs = ['down', 'right', 'up', 'left'];
+      dirs.forEach((dir, row) => {
+        const start = row * 17;
+        this.anims.create({
+          key: `${charKey}_walk_${dir}`,
+          frames: this.anims.generateFrameNumbers(charKey, { start, end: start + 3 }),
+          frameRate: 8,
+          repeat: -1,
+        });
+        this.anims.create({
+          key: `${charKey}_idle_${dir}`,
+          frames: [{ key: charKey, frame: start }],
+          frameRate: 1,
+        });
       });
     });
   }
