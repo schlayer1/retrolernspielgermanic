@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>DIE GERMANEN – Vom Langhaus zum Limes (10 v. Chr. – 350 n. Chr.) | 16-Bit Geschichtslernspiel</title>
+    <link rel="icon" type="image/png" href="/assets/icons/fibel.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --parch-bg: #fdf6e3;
+        --parch-card: #f7ecd2;
+        --parch-border: #d4af37;
+        --wood-dark: #1e130c;
+        --wood-panel: #2d1e15;
+        --forest-green: #15803d;
+        --amber-gold: #d97706;
+        --amber-light: #fde047;
+        --text-dark: #291b12;
+        --text-light: #fef3c7;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0a100d;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--text-light);
+      }
+
+      #game-container {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+      }
+
+      #game-container canvas {
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+
+      #ui-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        pointer-events: none;
+      }
+
+      /* =====================================================
+         SINGLE-PROXIMITY WORLD DOM LABEL (< 44px)
+         ===================================================== */
+      .world-dom-label {
+        position: absolute;
+        transform: translate(-50%, -100%);
+        background: rgba(30, 19, 12, 0.94);
+        border: 1.5px solid var(--amber-gold);
+        border-radius: 6px;
+        padding: 4px 10px;
+        text-align: center;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+        white-space: nowrap;
+        pointer-events: none;
+      }
+
+      .world-dom-label-title {
+        font-family: 'Cinzel', serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--amber-light);
+      }
+
+      .world-dom-label-sub {
+        font-size: 11px;
+        color: #fef3c7;
+        margin-top: 1px;
+      }
+
+      /* =====================================================
+         HUD TOP BAR & QUEST TRACKER
+         ===================================================== */
+      .hud-top-bar {
+        position: absolute;
+        top: 10px;
+        left: 12px;
+        right: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        pointer-events: auto;
+      }
+
+      .hud-left {
+        background: rgba(28, 18, 12, 0.88);
+        border: 1.5px solid var(--amber-gold);
+        border-radius: 8px;
+        padding: 6px 14px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      .hud-ch-badge {
+        font-size: 11px;
+        color: var(--amber-light);
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .hud-ch-title {
+        font-family: 'Cinzel', serif;
+        font-size: 14px;
+        font-weight: 700;
+        color: #fff;
+      }
+
+      .hud-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .hud-player-tag,
+      .hud-relics-badge {
+        background: rgba(28, 18, 12, 0.88);
+        border: 1.5px solid var(--amber-gold);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--amber-light);
+      }
+
+      .hud-quick-buttons {
+        display: flex;
+        gap: 6px;
+      }
+
+      .hud-btn {
+        background: rgba(45, 30, 21, 0.9);
+        border: 1px solid var(--amber-gold);
+        border-radius: 6px;
+        color: #fef3c7;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+
+      .hud-btn:hover {
+        background: var(--amber-gold);
+        color: #000;
+      }
+
+      .hud-quest-tracker {
+        position: absolute;
+        top: 65px;
+        left: 12px;
+        width: 290px;
+        background: rgba(28, 18, 12, 0.92);
+        border: 1.5px solid var(--amber-gold);
+        border-radius: 8px;
+        padding: 10px 12px;
+        pointer-events: auto;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      }
+
+      .quest-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+      }
+
+      .quest-title-text {
+        font-family: 'Cinzel', serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--amber-light);
+      }
+
+      .quest-counter {
+        background: #3b2518;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .quest-counter.quest-done {
+        background: var(--forest-green);
+        color: #fff;
+      }
+
+      .quest-desc {
+        font-size: 11px;
+        color: #e2d9cc;
+        line-height: 1.35;
+        margin-bottom: 8px;
+      }
+
+      .quest-objectives-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .quest-item {
+        font-size: 11px;
+        color: #cbd5e1;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .quest-item.done {
+        color: #86efac;
+        text-decoration: line-through;
+      }
+
+      /* =====================================================
+         MODAL BACKDROP & BASE CARDS
+         ===================================================== */
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(10, 6, 4, 0.78);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        pointer-events: auto;
+        padding: 16px;
+      }
+
+      .modal-card {
+        background: #241710;
+        border: 2px solid var(--amber-gold);
+        border-radius: 12px;
+        color: #fef3c7;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
+        max-width: 950px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 20px;
+      }
+
+      .modal-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+        padding-bottom: 10px;
+      }
+
+      .modal-header-row h2 {
+        font-family: 'Cinzel', serif;
+        font-size: 18px;
+        color: var(--amber-light);
+      }
+
+      .modal-close-btn {
+        background: transparent;
+        border: none;
+        color: #e2d9cc;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 4px 8px;
+      }
+
+      /* BUTTONS */
+      .btn-primary {
+        background: linear-gradient(180deg, #d97706, #b45309);
+        border: 1px solid #fef08a;
+        color: #fff;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 8px 18px;
+        border-radius: 6px;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        transition: 0.15s;
+      }
+
+      .btn-primary:hover {
+        background: linear-gradient(180deg, #f59e0b, #d97706);
+        transform: translateY(-1px);
+      }
+
+      .btn-primary.disabled,
+      .btn-primary:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-secondary {
+        background: #3b2518;
+        border: 1px solid var(--amber-gold);
+        color: #fef3c7;
+        font-weight: 600;
+        font-size: 12px;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .btn-sub {
+        background: rgba(45, 30, 21, 0.9);
+        border: 1px solid var(--amber-gold);
+        color: #fef3c7;
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      /* =====================================================
+         PARCHMENT START SCREEN (ZERO CLIPPING 8-GRID)
+         ===================================================== */
+      .parchment-startscreen {
+        background: var(--parch-bg);
+        color: var(--text-dark);
+        border: 3px solid #854d0e;
+        padding: 24px;
+        max-width: 980px;
+      }
+
+      .start-header {
+        text-align: center;
+        margin-bottom: 14px;
+      }
+
+      .start-school-badge {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #854d0e;
+        letter-spacing: 1px;
+      }
+
+      .start-main-title {
+        font-family: 'Cinzel', serif;
+        font-size: 26px;
+        font-weight: 800;
+        color: #451a03;
+        margin: 3px 0;
+      }
+
+      .start-subtitle {
+        font-size: 12px;
+        color: #78350f;
+        font-weight: 600;
+      }
+
+      .parchment-chapter-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .parchment-ch-card {
+        background: var(--parch-card);
+        border: 1.5px solid #ca8a04;
+        border-radius: 6px;
+        padding: 6px 8px;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+
+      .parchment-ch-card:hover,
+      .parchment-ch-card.active {
+        border-color: #854d0e;
+        background: #fef08a;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      .ch-card-header {
+        font-size: 10px;
+        font-weight: 700;
+        color: #854d0e;
+      }
+
+      .ch-card-title {
+        font-family: 'Cinzel', serif;
+        font-size: 11px;
+        font-weight: 700;
+        color: #1e130c;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .ch-card-sub {
+        font-size: 10px;
+        color: #573216;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .start-setup-section {
+        display: flex;
+        gap: 20px;
+        background: rgba(254, 240, 138, 0.45);
+        border: 1px solid #d4af37;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-bottom: 14px;
+      }
+
+      .start-input-group label,
+      .start-roles-section label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #451a03;
+        margin-bottom: 4px;
+        display: block;
+      }
+
+      .start-text-input {
+        background: #fff;
+        border: 1.5px solid #ca8a04;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #1e130c;
+        width: 180px;
+      }
+
+      .start-gender-row {
+        display: flex;
+        gap: 8px;
+      }
+
+      .gender-btn {
+        background: #fff;
+        border: 1.5px solid #ca8a04;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .gender-btn.active {
+        background: #b45309;
+        color: #fff;
+        border-color: #78350f;
+      }
+
+      .start-roles-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 4px;
+      }
+
+      .role-card {
+        background: #fff;
+        border: 1.5px solid #ca8a04;
+        border-radius: 6px;
+        padding: 8px;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+
+      .role-card:hover,
+      .role-card.active {
+        background: #fef9c3;
+        border-color: #854d0e;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+      }
+
+      .role-title {
+        font-family: 'Cinzel', serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: #451a03;
+      }
+
+      .role-tribal {
+        font-size: 10px;
+        color: #854d0e;
+        font-weight: 600;
+        margin-bottom: 3px;
+      }
+
+      .role-desc {
+        font-size: 10px;
+        color: #573216;
+        line-height: 1.3;
+        margin-bottom: 4px;
+      }
+
+      .role-bonus {
+        font-size: 10px;
+        font-weight: 700;
+        color: #15803d;
+      }
+
+      .start-code-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 12px 0;
+        font-size: 11px;
+        font-weight: 600;
+        color: #451a03;
+      }
+
+      .code-input {
+        background: #fff;
+        border: 1px solid #ca8a04;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-family: monospace;
+        font-size: 12px;
+        width: 170px;
+      }
+
+      .start-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #d4af37;
+        padding-top: 12px;
+      }
+
+      .start-controls-hint {
+        font-size: 11px;
+        color: #78350f;
+        font-weight: 600;
+      }
+
+      .start-launch-btn {
+        font-size: 14px;
+        padding: 10px 24px;
+      }
+
+      /* =====================================================
+         DIALOG MODAL WITH SPEAKER PORTRAIT & TOOLTIPS
+         ===================================================== */
+      .dialog-modal {
+        max-width: 650px;
+        background: #241710;
+      }
+
+      .dialog-layout {
+        display: flex;
+        gap: 16px;
+      }
+
+      .dialog-portrait-box {
+        width: 100px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        flex-shrink: 0;
+      }
+
+      .dialog-avatar-frame {
+        width: 60px;
+        height: 104px;
+        background: #180e09;
+        border: 2px solid var(--amber-gold);
+        border-radius: 6px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      }
+
+      .dialog-avatar-img {
+        width: 48px;
+        height: 96px;
+        image-rendering: pixelated;
+        display: block;
+      }
+
+      .dialog-speaker-name {
+        font-family: 'Cinzel', serif;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--amber-light);
+      }
+
+      .dialog-speaker-role {
+        font-size: 10px;
+        color: #cbd5e1;
+      }
+
+      .dialog-body {
+        flex: 1;
+      }
+
+      .dialog-speech-bubble {
+        background: rgba(45, 30, 21, 0.95);
+        border: 1.5px solid var(--amber-gold);
+        border-radius: 8px;
+        padding: 14px;
+        font-size: 13px;
+        line-height: 1.5;
+        margin-bottom: 12px;
+        color: #fef3c7;
+      }
+
+      .term-highlight {
+        color: #38bdf8;
+        font-weight: 700;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+
+      .term-highlight:hover {
+        color: #7dd3fc;
+      }
+
+      .dialog-progress-box {
+        background: rgba(20, 12, 8, 0.7);
+        border-radius: 6px;
+        padding: 8px 10px;
+        margin-bottom: 12px;
+      }
+
+      .dp-header {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--amber-light);
+        margin-bottom: 4px;
+      }
+
+      .dp-list {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .dp-item {
+        font-size: 11px;
+        color: #cbd5e1;
+      }
+
+      .dp-item.done {
+        color: #86efac;
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .quiz-pulse-btn {
+        animation: pulseBtn 1.4s infinite alternate;
+      }
+
+      @keyframes pulseBtn {
+        from {
+          box-shadow: 0 0 4px #f59e0b;
+        }
+        to {
+          box-shadow: 0 0 16px #f59e0b;
+        }
+      }
+
+      /* =====================================================
+         QUIZ & FEEDBACK MODAL
+         ===================================================== */
+      .quiz-modal {
+        max-width: 600px;
+      }
+
+      .quiz-header {
+        margin-bottom: 16px;
+      }
+
+      .quiz-badge {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--amber-light);
+        text-transform: uppercase;
+        margin-bottom: 4px;
+      }
+
+      .quiz-header h2 {
+        font-family: 'Cinzel', serif;
+        font-size: 16px;
+        color: #fff;
+        line-height: 1.35;
+      }
+
+      .quiz-options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .quiz-opt-btn {
+        background: #362114;
+        border: 1.5px solid var(--amber-gold);
+        border-radius: 6px;
+        color: #fef3c7;
+        font-size: 12px;
+        padding: 10px 14px;
+        text-align: left;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+
+      .quiz-opt-btn:hover {
+        background: #50311e;
+        border-color: #fef08a;
+      }
+
+      .quiz-feedback-modal {
+        max-width: 500px;
+        text-align: center;
+        padding: 24px;
+      }
+
+      .quiz-feedback-modal.correct {
+        border-color: #22c55e;
+      }
+
+      .quiz-feedback-modal.wrong {
+        border-color: #ef4444;
+      }
+
+      .qf-icon {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+
+      .quiz-feedback-modal.correct .qf-icon {
+        color: #4ade80;
+      }
+
+      .quiz-feedback-modal.wrong .qf-icon {
+        color: #f87171;
+      }
+
+      .qf-explanation {
+        font-size: 12px;
+        color: #e2d9cc;
+        line-height: 1.5;
+        margin-bottom: 16px;
+      }
+
+      /* =====================================================
+         RELIC MODAL
+         ===================================================== */
+      .relic-modal {
+        max-width: 680px;
+      }
+
+      .relic-header {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+
+      .relic-icon-large {
+        width: 48px;
+        height: 48px;
+        image-rendering: pixelated;
+        border: 2px solid var(--amber-gold);
+        border-radius: 8px;
+        padding: 4px;
+        background: rgba(0, 0, 0, 0.4);
+      }
+
+      .relic-epoch {
+        font-size: 11px;
+        color: var(--amber-light);
+        font-weight: 600;
+      }
+
+      .relic-header h2 {
+        font-family: 'Cinzel', serif;
+        font-size: 16px;
+        color: #fff;
+      }
+
+      .relic-loc {
+        font-size: 11px;
+        color: #94a3b8;
+      }
+
+      .relic-context-text {
+        font-size: 12px;
+        line-height: 1.5;
+        color: #fef3c7;
+        margin-bottom: 12px;
+      }
+
+      .relic-significance-box {
+        background: rgba(22, 101, 52, 0.3);
+        border-left: 3px solid #22c55e;
+        padding: 8px 12px;
+        font-size: 11px;
+        color: #86efac;
+        margin-bottom: 14px;
+      }
+
+      .relic-question-box {
+        background: rgba(45, 30, 21, 0.9);
+        border: 1px solid var(--amber-gold);
+        border-radius: 8px;
+        padding: 12px;
+      }
+
+      .rq-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #fef08a;
+        margin-bottom: 8px;
+      }
+
+      .rq-options {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      /* =====================================================
+         LEXIKON MODAL
+         ===================================================== */
+      .lexicon-modal {
+        max-width: 900px;
+      }
+
+      .lexicon-filter-bar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+
+      .lex-search-input {
+        background: #362114;
+        border: 1px solid var(--amber-gold);
+        border-radius: 6px;
+        color: #fff;
+        padding: 6px 12px;
+        font-size: 12px;
+        flex: 1;
+        min-width: 180px;
+      }
+
+      .lex-cats {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .cat-pill {
+        background: #362114;
+        border: 1px solid #78350f;
+        border-radius: 20px;
+        color: #cbd5e1;
+        font-size: 11px;
+        padding: 4px 10px;
+        cursor: pointer;
+      }
+
+      .cat-pill.active {
+        background: var(--amber-gold);
+        color: #000;
+        font-weight: 700;
+      }
+
+      .lexicon-entries-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      .lex-card {
+        background: #2d1c12;
+        border: 1px solid #78350f;
+        border-radius: 8px;
+        padding: 10px;
+      }
+
+      .lex-card-top {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 6px;
+      }
+
+      .lex-card-icon {
+        width: 32px;
+        height: 32px;
+        image-rendering: pixelated;
+      }
+
+      .lex-card-term {
+        font-family: 'Cinzel', serif;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--amber-light);
+      }
+
+      .lex-card-cat {
+        font-size: 10px;
+        color: #94a3b8;
+      }
+
+      .lex-card-def {
+        font-size: 11px;
+        color: #e2d9cc;
+        line-height: 1.4;
+        margin-bottom: 6px;
+      }
+
+      .lex-card-merksatz {
+        font-size: 10px;
+        color: #86efac;
+        background: rgba(22, 101, 52, 0.25);
+        padding: 4px 6px;
+        border-radius: 4px;
+      }
+
+      /* =====================================================
+         TIMELINE MODAL (Taste Z)
+         ===================================================== */
+      .timeline-modal {
+        max-width: 850px;
+      }
+
+      .timeline-phases-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+
+      .timeline-phase-card {
+        background: #2d1c12;
+        border: 1.5px solid var(--amber-gold);
+        border-radius: 8px;
+        padding: 14px;
+      }
+
+      .tp-num {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--amber-light);
+        text-transform: uppercase;
+      }
+
+      .tp-year {
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+        margin-bottom: 4px;
+      }
+
+      .tp-title {
+        font-family: 'Cinzel', serif;
+        font-size: 14px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 6px;
+      }
+
+      .tp-desc {
+        font-size: 11px;
+        color: #cbd5e1;
+        line-height: 1.4;
+      }
+
+      /* =====================================================
+         7-KACHEL PAUSE DASHBOARD (Taste P)
+         ===================================================== */
+      .pause-modal {
+        max-width: 850px;
+      }
+
+      .pause-tiles-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .pause-tile {
+        background: #2d1c12;
+        border: 1px solid var(--amber-gold);
+        border-radius: 8px;
+        padding: 12px;
+      }
+
+      .code-tile {
+        grid-column: span 2;
+        background: #3b2518;
+      }
+
+      .rank-tile {
+        grid-column: span 1;
+      }
+
+      .controls-tile {
+        grid-column: span 3;
+      }
+
+      .pt-label {
+        font-size: 11px;
+        color: var(--amber-light);
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+
+      .pt-code {
+        font-family: monospace;
+        font-size: 18px;
+        font-weight: 800;
+        color: #fef08a;
+        background: #180e07;
+        padding: 6px 10px;
+        border-radius: 4px;
+        display: inline-block;
+        letter-spacing: 1px;
+        margin-bottom: 4px;
+      }
+
+      .pt-sub {
+        font-size: 10px;
+        color: #cbd5e1;
+      }
+
+      .pt-rank-title {
+        font-family: 'Cinzel', serif;
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+      }
+
+      .pt-badge-rank {
+        display: inline-block;
+        background: var(--amber-gold);
+        color: #000;
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin: 3px 0;
+      }
+
+      .pt-score,
+      .pt-counter,
+      .pt-track {
+        font-size: 11px;
+        color: #e2d9cc;
+        margin-bottom: 6px;
+      }
+
+      .pt-stat-value {
+        font-family: 'Cinzel', serif;
+        font-size: 16px;
+        font-weight: 800;
+        color: #86efac;
+        margin: 4px 0 2px 0;
+      }
+
+      .audio-controls-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .pt-controls-list {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        font-size: 11px;
+        color: #cbd5e1;
+      }
+
+      .pause-footer {
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      /* =====================================================
+         URKUNDE / DIPLOM (Taste U)
+         ===================================================== */
+      .certificate-card {
+        background: #fdf6e3;
+        color: #1c1917;
+        max-width: 680px;
+        padding: 16px;
+        border: 4px double #854d0e;
+      }
+
+      .cert-border {
+        border: 2px solid #ca8a04;
+        padding: 24px;
+        text-align: center;
+      }
+
+      .cert-seal {
+        font-size: 32px;
+        margin-bottom: 4px;
+      }
+
+      .cert-sub {
+        font-size: 11px;
+        font-weight: 700;
+        color: #854d0e;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .cert-title {
+        font-family: 'Cinzel', serif;
+        font-size: 24px;
+        font-weight: 800;
+        color: #451a03;
+        margin: 6px 0;
+      }
+
+      .cert-intro {
+        font-size: 12px;
+        color: #78350f;
+        font-style: italic;
+      }
+
+      .cert-name {
+        font-family: 'Cinzel', serif;
+        font-size: 22px;
+        font-weight: 800;
+        color: #854d0e;
+        margin: 12px 0;
+        border-bottom: 1.5px solid #ca8a04;
+        display: inline-block;
+        padding: 0 20px 4px;
+      }
+
+      .cert-text {
+        font-size: 12px;
+        color: #451a03;
+        line-height: 1.5;
+        max-width: 520px;
+        margin: 0 auto 16px;
+      }
+
+      .cert-rank-box {
+        background: #fef9c3;
+        border: 1px solid #ca8a04;
+        border-radius: 6px;
+        padding: 8px;
+        margin-bottom: 18px;
+        display: inline-block;
+      }
+
+      .cr-title {
+        font-size: 10px;
+        font-weight: 700;
+        color: #854d0e;
+      }
+
+      .cr-name {
+        font-family: 'Cinzel', serif;
+        font-size: 14px;
+        font-weight: 800;
+        color: #451a03;
+      }
+
+      .cr-score {
+        font-size: 11px;
+        color: #15803d;
+        font-weight: 600;
+      }
+
+      .cert-footer-row {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 14px;
+        border-top: 1px solid #d4af37;
+        padding-top: 10px;
+      }
+
+      .cert-col {
+        text-align: left;
+        font-size: 10px;
+        color: #78350f;
+      }
+
+      .cert-sign {
+        font-weight: 700;
+        margin-top: 2px;
+      }
+
+      .cert-actions {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      /* =====================================================
+         INVENTORY, CRAFT & BUILD MODALS
+         ===================================================== */
+      .inv-items-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+
+      .inv-slot {
+        background: #2d1c12;
+        border: 1px solid var(--amber-gold);
+        border-radius: 6px;
+        padding: 10px;
+        text-align: center;
+      }
+
+      .inv-slot-icon {
+        width: 32px;
+        height: 32px;
+        image-rendering: pixelated;
+        margin-bottom: 4px;
+      }
+
+      .inv-slot-name {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--amber-light);
+      }
+
+      .inv-slot-qty {
+        font-size: 12px;
+        font-weight: 800;
+        color: #86efac;
+      }
+
+      .inv-slot-desc {
+        font-size: 10px;
+        color: #94a3b8;
+        margin-top: 3px;
+      }
+
+      .craft-recipes-list,
+      .trade-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .recipe-row,
+      .trade-row {
+        background: #2d1c12;
+        border: 1px solid var(--amber-gold);
+        border-radius: 8px;
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .recipe-icon {
+        width: 32px;
+        height: 32px;
+        image-rendering: pixelated;
+        margin-right: 12px;
+      }
+
+      .recipe-info,
+      .trade-info {
+        flex: 1;
+      }
+
+      .recipe-name,
+      .trade-partner {
+        font-family: 'Cinzel', serif;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--amber-light);
+      }
+
+      .recipe-desc,
+      .trade-deal {
+        font-size: 11px;
+        color: #cbd5e1;
+      }
+
+      .recipe-cost {
+        font-size: 10px;
+        color: #fde047;
+      }
+
+      .build-projects-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+
+      .build-card {
+        background: #2d1c12;
+        border: 1px solid var(--amber-gold);
+        border-radius: 8px;
+        padding: 12px;
+      }
+
+      .build-card.built {
+        border-color: #22c55e;
+        background: rgba(22, 101, 52, 0.2);
+      }
+
+      .bc-header {
+        font-family: 'Cinzel', serif;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--amber-light);
+      }
+
+      .bc-helper {
+        font-size: 10px;
+        color: #94a3b8;
+      }
+
+      .bc-desc {
+        font-size: 11px;
+        color: #cbd5e1;
+        margin: 4px 0;
+      }
+
+      .bc-cost {
+        font-size: 10px;
+        color: #fde047;
+        margin-bottom: 8px;
+      }
+
+      /* TOAST NOTIFICATION */
+      .toast-container {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        pointer-events: none;
+      }
+
+      .hud-toast {
+        background: rgba(30, 19, 12, 0.94);
+        border: 1.5px solid var(--amber-gold);
+        color: #fef3c7;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+        transition: 0.3s;
+      }
+
+      /* =====================================================
+         TOUCH CONTROLS OVERLAY (Mobile)
+         ===================================================== */
+      .touch-controls-overlay {
+        position: fixed;
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        height: 140px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        pointer-events: none;
+        z-index: 80;
+      }
+
+      .touch-joystick-base {
+        width: 100px;
+        height: 100px;
+        background: rgba(30, 20, 14, 0.65);
+        border: 2px solid var(--amber-gold);
+        border-radius: 50%;
+        position: relative;
+        pointer-events: auto;
+      }
+
+      .touch-joystick-knob {
+        width: 44px;
+        height: 44px;
+        background: var(--amber-gold);
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+
+      .touch-action-buttons {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        pointer-events: auto;
+      }
+
+      .touch-sub-column {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .touch-btn {
+        background: rgba(45, 30, 21, 0.85);
+        border: 1.5px solid var(--amber-gold);
+        border-radius: 50%;
+        color: #fef3c7;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .touch-btn-sub {
+        width: 38px;
+        height: 38px;
+      }
+
+      .touch-btn-action {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(180deg, #d97706, #b45309);
+        border: 2px solid #fef08a;
+      }
+
+      .t-key {
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .t-sub {
+        font-size: 8px;
+        color: #fde68a;
+      }
+
+      /* =====================================================
+         MOBILE LANDSCAPE RESPONSIVE FIXES (< 450px)
+         ===================================================== */
+      @media (max-height: 450px) {
+        .modal-backdrop {
+          padding: 4px;
+        }
+        .parchment-startscreen {
+          padding: 6px 12px;
+          max-height: 98vh;
+        }
+        .start-header {
+          margin-bottom: 4px;
+        }
+        .start-school-badge {
+          font-size: 9px;
+        }
+        .start-main-title {
+          font-size: 15px;
+          margin: 1px 0;
+        }
+        .start-subtitle {
+          font-size: 10px;
+        }
+        .parchment-chapter-grid {
+          grid-template-columns: repeat(4, 1fr);
+          gap: 3px;
+          margin-bottom: 4px;
+        }
+        .parchment-ch-card {
+          padding: 2px 4px;
+        }
+        .ch-card-header {
+          font-size: 8px;
+        }
+        .ch-card-title {
+          font-size: 9px;
+        }
+        .ch-card-sub {
+          font-size: 8px;
+        }
+        .start-setup-section {
+          padding: 4px 8px;
+          margin-bottom: 4px;
+          gap: 10px;
+        }
+        .start-input-group label,
+        .start-roles-section label {
+          font-size: 10px;
+          margin-bottom: 2px;
+        }
+        .start-text-input {
+          padding: 3px 6px;
+          font-size: 11px;
+          width: 140px;
+        }
+        .gender-btn {
+          padding: 3px 8px;
+          font-size: 10px;
+        }
+        .start-roles-grid {
+          gap: 4px;
+        }
+        .role-card {
+          padding: 4px;
+        }
+        .role-title {
+          font-size: 10px;
+        }
+        .role-tribal {
+          font-size: 8px;
+        }
+        .role-bonus {
+          font-size: 9px;
+        }
+        .role-desc {
+          display: none;
+        }
+        .start-code-row {
+          margin: 4px 0;
+          font-size: 10px;
+        }
+        .code-input {
+          padding: 2px 6px;
+          font-size: 10px;
+          width: 130px;
+        }
+        .start-footer {
+          padding-top: 4px;
+        }
+        .start-controls-hint {
+          font-size: 9px;
+        }
+        .start-launch-btn {
+          font-size: 11px;
+          padding: 5px 16px;
+        }
+        .hud-quest-tracker {
+          top: 45px;
+          width: 220px;
+          padding: 6px 8px;
+        }
+        .dialog-avatar-frame {
+          width: 48px;
+          height: 72px;
+        }
+        .dialog-avatar-img {
+          width: 36px;
+          height: 72px;
+        }
+        .dialog-speech-bubble {
+          padding: 8px 12px;
+          font-size: 11px;
+          margin-bottom: 6px;
+        }
+        .dialog-progress-box {
+          padding: 6px 8px;
+          margin-bottom: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-container"></div>
+    <div id="ui-layer"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
