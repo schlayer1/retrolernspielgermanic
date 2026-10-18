@@ -6,6 +6,7 @@ import { GERMAN_RELICS, GermanRelic } from '../data/relics';
 import { gameState } from '../systems/GameState';
 import { WorldDecorManager } from '../world/decor';
 import { WildlifeManager } from '../world/Wildlife';
+import { LivingWorldManager } from '../world/LivingWorldManager';
 
 interface InteractiveTarget {
   id: string;
@@ -41,6 +42,7 @@ export class WorldScene extends Phaser.Scene {
 
   private decorManager!: WorldDecorManager;
   private wildlifeManager!: WildlifeManager;
+  private livingWorldManager!: LivingWorldManager;
   private stepTimer = 0;
   private facing: 'down' | 'up' | 'left' | 'right' = 'down';
   private bakedGroundEpoch = -1;
@@ -74,6 +76,7 @@ export class WorldScene extends Phaser.Scene {
 
     this.decorManager = new WorldDecorManager(this);
     this.wildlifeManager = new WildlifeManager(this);
+    this.livingWorldManager = new LivingWorldManager(this);
 
     // 1. Waterways: Weser/Rhein river in the West and marsh ponds
     this.buildRiverAndBridges();
@@ -92,6 +95,7 @@ export class WorldScene extends Phaser.Scene {
     this.player = this.add
       .sprite(gameState.playerX, gameState.playerY, texKey, 0)
       .setDepth(gameState.playerY);
+    this.livingWorldManager.registerPlayer(this.player);
 
     // 5. Living wildlife: Wisente, sheep, rams, horses
     this.wildlifeManager.init(this.mapW, this.mapH);
@@ -388,10 +392,15 @@ export class WorldScene extends Phaser.Scene {
 
       // Reeds & riverbank flora
       if (!isBridgeNorth && !isBridgeSouth && ty % 3 === 0) {
-        this.decorManager.placeDecor((riverCenter - 3) * 16 + 8, ty * 16 + 12, 'fern_1', 0.8, -2);
-        this.decorManager.placeDecor((riverCenter + 3) * 16 + 8, ty * 16 + 12, 'fern_2', 0.8, -2);
+        const f1 = this.decorManager.placeDecor((riverCenter - 3) * 16 + 8, ty * 16 + 12, 'fern_1', 0.8, -2);
+        this.livingWorldManager.registerFlora(f1);
+        const f2 = this.decorManager.placeDecor((riverCenter + 3) * 16 + 8, ty * 16 + 12, 'fern_2', 0.8, -2);
+        this.livingWorldManager.registerFlora(f2);
       }
     }
+
+    // Initialize flowing water shimmer lines & moor ripples
+    this.livingWorldManager.initWaterEffects();
   }
 
   // =========================================================================
@@ -401,25 +410,46 @@ export class WorldScene extends Phaser.Scene {
     // Deterministic pseudo-random placement for natural immersion
     const seedPoints = [
       // Deep Northern Oaks & Birch woods
-      { x: 30, y: 12, f: 'tree_1', s: 1.2 },
-      { x: 38, y: 10, f: 'tree_2', s: 1.1 },
-      { x: 46, y: 14, f: 'tree_1', s: 1.3 },
-      { x: 55, y: 12, f: 'tree_2', s: 1.2 },
-      { x: 62, y: 16, f: 'tree_1', s: 1.1 },
-      // Eastern Moor Haze Oaks
-      { x: 72, y: 32, f: 'tree_2', s: 1.3 },
-      { x: 84, y: 34, f: 'tree_1', s: 1.2 },
-      { x: 88, y: 52, f: 'tree_2', s: 1.4 },
-      // Southern Forest
-      { x: 38, y: 72, f: 'tree_1', s: 1.2 },
-      { x: 46, y: 74, f: 'tree_2', s: 1.3 },
-      { x: 68, y: 72, f: 'tree_1', s: 1.2 },
+      { x: 30, y: 12, f: 'tree_oak_1', s: 1.2 },
+      { x: 38, y: 10, f: 'tree_oak_2', s: 1.1 },
+      { x: 46, y: 14, f: 'tree_oak_1', s: 1.3 },
+      { x: 55, y: 12, f: 'tree_oak_2', s: 1.2 },
+      { x: 62, y: 16, f: 'tree_oak_1', s: 1.1 },
+      // Eastern Moor Haze Oaks & Willows
+      { x: 72, y: 32, f: 'tree_oak_2', s: 1.3 },
+      { x: 84, y: 34, f: 'tree_willow', s: 1.2 },
+      { x: 88, y: 52, f: 'tree_willow', s: 1.4 },
+      // Southern Forest Pines & Oaks
+      { x: 38, y: 72, f: 'tree_oak_1', s: 1.2 },
+      { x: 46, y: 74, f: 'tree_pine_1', s: 1.3 },
+      { x: 68, y: 72, f: 'tree_oak_2', s: 1.2 },
     ];
 
     seedPoints.forEach((p) => {
-      this.decorManager.placeDecor(p.x * 16, p.y * 16, p.f, p.s);
-      this.decorManager.placeDecor(p.x * 16 + 14, p.y * 16 + 10, 'bush_1', 0.9);
-      this.decorManager.placeDecor(p.x * 16 - 12, p.y * 16 + 14, 'fern_1', 0.8);
+      const tree = this.decorManager.placeDecor(p.x * 16, p.y * 16, p.f, p.s);
+      this.livingWorldManager.registerFlora(tree);
+
+      const bush = this.decorManager.placeDecor(p.x * 16 + 14, p.y * 16 + 10, 'bush_a', 0.9);
+      this.livingWorldManager.registerFlora(bush);
+
+      const fern = this.decorManager.placeDecor(p.x * 16 - 12, p.y * 16 + 14, 'fern_1', 0.8);
+      this.livingWorldManager.registerFlora(fern);
+    });
+
+    // Scattered meadow flowers & wild grasses
+    const meadowFlora = [
+      { x: 26, y: 38, f: 'flower_white' },
+      { x: 32, y: 44, f: 'flower_sun' },
+      { x: 28, y: 54, f: 'grass_1' },
+      { x: 36, y: 58, f: 'grass_2' },
+      { x: 46, y: 58, f: 'flower_white' },
+      { x: 54, y: 58, f: 'flower_sun' },
+      { x: 72, y: 38, f: 'grass_1' },
+      { x: 76, y: 38, f: 'fern_2' },
+    ];
+    meadowFlora.forEach((fl) => {
+      const spr = this.decorManager.placeDecor(fl.x * 16, fl.y * 16, fl.f, 0.9);
+      this.livingWorldManager.registerFlora(spr);
     });
 
     // Scattered rocks, stumps, ferns
@@ -459,34 +489,58 @@ export class WorldScene extends Phaser.Scene {
 
     // 2. SMELTER & SMITHS AT THE STREAM (Center-East)
     this.add.image(48 * 16, 33 * 16, 'rennofen_clay_smelter').setOrigin(0.5, 0.9).setDepth(33 * 16);
+    this.livingWorldManager.registerFireSource(48 * 16, 33 * 16, true, 34, 0xf97316);
+
     this.add.image(55 * 16, 33 * 16, 'charcoal_meiler_smoke').setOrigin(0.5, 0.9).setDepth(33 * 16);
+    this.livingWorldManager.registerFireSource(55 * 16, 33 * 16, true, 36, 0x64748b);
+
     this.add.image(46 * 16, 38 * 16, 'anvil_and_forge').setOrigin(0.5, 0.9).setDepth(38 * 16);
+    this.livingWorldManager.registerFireSource(46 * 16, 38 * 16, true, 32, 0xf59e0b);
+
     this.add.image(53 * 16, 38 * 16, 'wood_log_pile').setOrigin(0.5, 0.9).setDepth(38 * 16);
     this.add.image(41 * 16, 36 * 16, 'pelt_drying_frame').setOrigin(0.5, 0.9).setDepth(36 * 16);
 
     // 3. THINGPLATZ UNDER THE SACRED OAK (South-Center)
     // Mighty Oak stands at North edge of glade (y=42)
-    this.decorManager.placeDecor(50 * 16, 42 * 16, 'tree_1', 1.5, -10);
+    const oak = this.decorManager.placeDecor(50 * 16, 42 * 16, 'tree_oak_tall', 1.5, -10);
+    this.livingWorldManager.registerFlora(oak);
+
     // Dolmen altar north of the stone circle (y=47)
-    this.add.image(50 * 16, 47 * 16, 'sacred_dolmen_portal').setOrigin(0.5, 0.9).setScale(0.7).setDepth(47 * 16);
+    const dolmen = this.add.image(50 * 16, 47 * 16, 'sacred_dolmen_portal').setOrigin(0.5, 0.9).setScale(0.7).setDepth(47 * 16);
+    this.livingWorldManager.registerMysticalProp(dolmen);
+
     // Thing stone circle in center of glade (y=54)
     this.add.image(50 * 16, 54 * 16, 'thing_stone_circle').setOrigin(0.5, 0.9).setScale(0.75).setDepth(54 * 16);
+
     // Sacred fire ring positioned in open clearing (y=61)
     this.add.image(50 * 16, 61 * 16, 'sacred_fire_ring').setOrigin(0.5, 0.9).setScale(0.65).setDepth(61 * 16);
+    this.livingWorldManager.registerFireSource(50 * 16, 61 * 16, true, 46, 0xfb923c);
+
     // Flanking sacred runestones
-    this.add.image(43 * 16, 54 * 16, 'runestone_standing_blue').setOrigin(0.5, 0.9).setScale(0.55).setDepth(54 * 16);
-    this.add.image(57 * 16, 54 * 16, 'runestone_standing_green').setOrigin(0.5, 0.9).setScale(0.55).setDepth(54 * 16);
+    const runeBlue = this.add.image(43 * 16, 54 * 16, 'runestone_standing_blue').setOrigin(0.5, 0.9).setScale(0.55).setDepth(54 * 16);
+    this.livingWorldManager.registerMysticalProp(runeBlue);
+
+    const runeGreen = this.add.image(57 * 16, 54 * 16, 'runestone_standing_green').setOrigin(0.5, 0.9).setScale(0.55).setDepth(54 * 16);
+    this.livingWorldManager.registerMysticalProp(runeGreen);
 
     // 4. WALDGIRMES ROMAN TRADING POST & FORUM (Southwest)
-    this.add.image(22 * 16, 48 * 16, 'roman_trader_canopy').setOrigin(0.5, 0.9).setDepth(48 * 16);
+    const romanCanopy = this.add.image(22 * 16, 48 * 16, 'roman_trader_canopy').setOrigin(0.5, 0.9).setDepth(48 * 16);
+    this.livingWorldManager.registerBanner(romanCanopy);
     this.add.image(26 * 16, 50 * 16, 'roman_forum_market').setOrigin(0.5, 0.9).setDepth(50 * 16);
 
     // 5. SACRED MOOR & SANCTUARY OF NERTHUS (East)
-    this.add.image(74 * 16, 42 * 16, 'sacrificial_altar_carved').setOrigin(0.5, 0.9).setDepth(42 * 16);
+    const altar = this.add.image(74 * 16, 42 * 16, 'sacrificial_altar_carved').setOrigin(0.5, 0.9).setDepth(42 * 16);
+    this.livingWorldManager.registerMysticalProp(altar);
+
     this.add.image(78 * 16, 40 * 16, 'carved_wooden_god_idol').setOrigin(0.5, 0.9).setDepth(40 * 16);
     this.add.image(70 * 16, 44 * 16, 'braak_totem_pole').setOrigin(0.5, 0.9).setDepth(44 * 16);
-    this.add.image(76 * 16, 46 * 16, 'runestone_standing_blue').setOrigin(0.5, 0.9).setDepth(46 * 16);
-    this.add.image(72 * 16, 46 * 16, 'runestone_standing_green').setOrigin(0.5, 0.9).setDepth(46 * 16);
+
+    const moorRuneB = this.add.image(76 * 16, 46 * 16, 'runestone_standing_blue').setOrigin(0.5, 0.9).setDepth(46 * 16);
+    this.livingWorldManager.registerMysticalProp(moorRuneB);
+
+    const moorRuneG = this.add.image(72 * 16, 46 * 16, 'runestone_standing_green').setOrigin(0.5, 0.9).setDepth(46 * 16);
+    this.livingWorldManager.registerMysticalProp(moorRuneG);
+
     this.add.image(80 * 16, 44 * 16, 'herbs_medicinal_table').setOrigin(0.5, 0.9).setDepth(44 * 16);
 
     // 6. KALKRIESE PASS & TURF RAMPART (Northeast)
@@ -501,7 +555,17 @@ export class WorldScene extends Phaser.Scene {
     // 8. FOEDERATI SETTLEMENT AT THE RHINE (Southeast)
     this.add.image(58 * 16, 66 * 16, 'roman_praetorium_red').setOrigin(0.5, 0.9).setDepth(66 * 16);
     this.add.image(54 * 16, 68 * 16, 'scutum_shield_line').setOrigin(0.5, 0.9).setDepth(68 * 16);
-    this.add.image(62 * 16, 68 * 16, 'legion_aquila_vexillum').setOrigin(0.5, 0.9).setDepth(68 * 16);
+
+    const vexillum = this.add.image(62 * 16, 68 * 16, 'legion_aquila_vexillum').setOrigin(0.5, 0.9).setDepth(68 * 16);
+    this.livingWorldManager.registerBanner(vexillum);
+
+    // 9. Resource Sparkle Hotspots
+    this.livingWorldManager.registerResourceHotspot(30 * 16, 22 * 16); // Spelz
+    this.livingWorldManager.registerResourceHotspot(30 * 16, 34 * 16); // Heu
+    this.livingWorldManager.registerResourceHotspot(52 * 16, 36 * 16); // Erz
+    this.livingWorldManager.registerResourceHotspot(52 * 16, 32 * 16); // Kohle
+    this.livingWorldManager.registerResourceHotspot(18 * 16, 36 * 16); // Bernstein
+    this.livingWorldManager.registerResourceHotspot(74 * 16, 20 * 16); // Rasensode
   }
 
   // =========================================================================
@@ -530,6 +594,11 @@ export class WorldScene extends Phaser.Scene {
         y: mData.y * 16,
         minChapter: ch,
       });
+
+      if (this.livingWorldManager) {
+        this.livingWorldManager.clearMentors();
+        this.livingWorldManager.registerMentor(this.mentorSprite);
+      }
     }
 
     // 2. Resource Harvest Sites
@@ -656,12 +725,13 @@ export class WorldScene extends Phaser.Scene {
   // =========================================================================
   update(time: number, delta: number): void {
     gameState.playTimeSeconds += delta / 1000;
-    this.handleMovement(delta);
+    const isMoving = this.handleMovement(delta);
     this.wildlifeManager.update(delta, this.player.x, this.player.y);
+    this.livingWorldManager.update(delta, this.player.x, this.player.y, isMoving);
     this.updateInteractiveProximity();
   }
 
-  private handleMovement(delta: number): void {
+  private handleMovement(delta: number): boolean {
     let vx = 0;
     let vy = 0;
     const speed = 88; // Crisp 16-Bit walking speed
@@ -677,8 +747,9 @@ export class WorldScene extends Phaser.Scene {
     if (down) vy += speed;
 
     const charKey = gameState.gender === 'female' ? 'player_alrun' : 'player_folkmar';
+    const isMoving = vx !== 0 || vy !== 0;
 
-    if (vx !== 0 || vy !== 0) {
+    if (isMoving) {
       if (vx < 0) this.facing = 'left';
       else if (vx > 0) this.facing = 'right';
       else if (vy < 0) this.facing = 'up';
@@ -714,6 +785,8 @@ export class WorldScene extends Phaser.Scene {
     } else {
       this.player.anims.play(`${charKey}_idle_${this.facing}`, true);
     }
+
+    return isMoving;
   }
 
   private updateInteractiveProximity(): void {

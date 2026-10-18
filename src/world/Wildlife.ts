@@ -1,16 +1,21 @@
 import Phaser from 'phaser';
 
+export type AnimalState = 'idle_breathe' | 'graze_eat' | 'wander_tether' | 'player_aware';
+
 interface AnimalEntity {
   sprite: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image;
   baseX: number;
   baseY: number;
   wanderRadius: number;
-  moveTimer: number;
-  isMoving: boolean;
-  targetX: number;
-  targetY: number;
   speed: number;
   baseScale: number;
+  state: AnimalState;
+  stateTimer: number;
+  targetX: number;
+  targetY: number;
+  facingRight: boolean;
+  stepPhase: number;
+  activeTween: Phaser.Tweens.Tween | null;
 }
 
 interface BoundingBox {
@@ -85,85 +90,207 @@ export class WildlifeManager {
       img.setScale(baseScale);
       img.setDepth(y);
 
-      this.animals.push({
+      const entity: AnimalEntity = {
         sprite: img,
         baseX: x,
         baseY: y,
         wanderRadius: radius,
-        moveTimer: Math.random() * 2000 + 1000,
-        isMoving: false,
-        targetX: x,
-        targetY: y,
         speed,
         baseScale,
-      });
+        state: 'idle_breathe',
+        stateTimer: Math.random() * 2000 + 1000,
+        targetX: x,
+        targetY: y,
+        facingRight: true,
+        stepPhase: 0,
+        activeTween: null,
+      };
+
+      this.enterState(entity, 'idle_breathe');
+      this.animals.push(entity);
     } catch {
-      // Texture not yet loaded or missing
+      // Texture missing or not yet loaded
     }
+  }
+
+  private enterState(a: AnimalEntity, newState: AnimalState): void {
+    // Clean up active tweens
+    if (a.activeTween) {
+      a.activeTween.stop();
+      a.activeTween = null;
+    }
+
+    a.state = newState;
+
+    switch (newState) {
+      case 'idle_breathe': {
+        a.stateTimer = 2200 + Math.random() * 2000;
+        a.sprite.setAngle(0);
+        this.updateDirectionScale(a);
+
+        // Subtle vertical breathing squash & stretch
+        a.activeTween = this.scene.tweens.add({
+          targets: a.sprite,
+          scaleY: a.baseScale * 1.025,
+          duration: 1100 + Math.random() * 300,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+        break;
+      }
+
+      case 'graze_eat': {
+        a.stateTimer = 2500 + Math.random() * 2500;
+        this.updateDirectionScale(a);
+
+        // Head tilt down towards grass + chewing micro-bounce
+        const grazeAngle = a.facingRight ? 4 : -4;
+        a.activeTween = this.scene.tweens.add({
+          targets: a.sprite,
+          angle: { from: 0, to: grazeAngle },
+          duration: 600,
+          yoyo: true,
+          repeat: 3,
+          ease: 'Quad.easeInOut',
+        });
+        break;
+      }
+
+      case 'wander_tether': {
+        // Pick valid target in wanderRadius
+        let found = false;
+        for (let i = 0; i < 6; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const dist = 10 + Math.random() * (a.wanderRadius - 10);
+          const tx = a.baseX + Math.cos(ang) * dist;
+          const ty = a.baseY + Math.sin(ang) * dist;
+
+          if (!this.isPointBlocked(tx, ty)) {
+            a.targetX = tx;
+            a.targetY = ty;
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          // Stay idle if blocked
+          this.enterState(a, 'idle_breathe');
+          return;
+        }
+
+        a.stateTimer = 4000; // Max wander timeout
+        a.sprite.setAngle(0);
+        a.facingRight = a.targetX >= a.sprite.x;
+        this.updateDirectionScale(a);
+        break;
+      }
+
+      case 'player_aware': {
+        a.stateTimer = 1800;
+        a.sprite.setAngle(0);
+        this.updateDirectionScale(a);
+
+        // Alert posture (slight head lift)
+        a.activeTween = this.scene.tweens.add({
+          targets: a.sprite,
+          scaleY: a.baseScale * 1.04,
+          duration: 800,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+        break;
+      }
+    }
+  }
+
+  private updateDirectionScale(a: AnimalEntity): void {
+    const sx = a.facingRight ? a.baseScale : -a.baseScale;
+    a.sprite.setScale(sx, a.baseScale);
   }
 
   public update(delta: number, playerX: number, playerY: number): void {
     const dt = delta / 1000;
 
     for (const a of this.animals) {
-      a.moveTimer -= delta;
-
-      // Check proximity to player (animals pause and watch when close)
       const distToPlayer = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, playerX, playerY);
+
+      // 1. Proximity Awareness Check
       if (distToPlayer < 36) {
-        a.isMoving = false;
-        a.moveTimer = 1500;
+        if (a.state !== 'player_aware') {
+          a.facingRight = playerX >= a.sprite.x;
+          this.enterState(a, 'player_aware');
+        }
+        continue;
+      } else if (a.state === 'player_aware' && distToPlayer > 44) {
+        // Player walked away: return to idle
+        this.enterState(a, 'idle_breathe');
         continue;
       }
 
-      if (a.moveTimer <= 0) {
-        a.isMoving = !a.isMoving;
-        a.moveTimer = Math.random() * 3000 + 2000;
+      // 2. State Timer Countdown
+      a.stateTimer -= delta;
 
-        if (a.isMoving) {
-          // Attempt finding a non-blocked target
-          for (let attempt = 0; attempt < 5; attempt++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * a.wanderRadius;
-            const testX = a.baseX + Math.cos(angle) * dist;
-            const testY = a.baseY + Math.sin(angle) * dist;
-
-            if (!this.isPointBlocked(testX, testY)) {
-              a.targetX = testX;
-              a.targetY = testY;
-              break;
-            }
+      if (a.state === 'idle_breathe') {
+        if (a.stateTimer <= 0) {
+          // Transition to graze (60%) or wander (40%)
+          if (Math.random() < 0.6) {
+            this.enterState(a, 'graze_eat');
+          } else {
+            this.enterState(a, 'wander_tether');
           }
         }
-      }
-
-      if (a.isMoving) {
+      } else if (a.state === 'graze_eat') {
+        if (a.stateTimer <= 0) {
+          // Transition to idle or wander
+          if (Math.random() < 0.5) {
+            this.enterState(a, 'wander_tether');
+          } else {
+            this.enterState(a, 'idle_breathe');
+          }
+        }
+      } else if (a.state === 'wander_tether') {
         const d = Phaser.Math.Distance.Between(a.sprite.x, a.sprite.y, a.targetX, a.targetY);
-        if (d > 2) {
-          const moveStep = a.speed * dt;
-          const angle = Phaser.Math.Angle.Between(a.sprite.x, a.sprite.y, a.targetX, a.targetY);
-          const nextX = a.sprite.x + Math.cos(angle) * moveStep;
-          const nextY = a.sprite.y + Math.sin(angle) * moveStep;
 
-          // Check obstacle collision before moving
+        if (d > 2 && a.stateTimer > 0) {
+          const moveStep = a.speed * dt;
+          const ang = Phaser.Math.Angle.Between(a.sprite.x, a.sprite.y, a.targetX, a.targetY);
+          const nextX = a.sprite.x + Math.cos(ang) * moveStep;
+          const nextY = a.sprite.y + Math.sin(ang) * moveStep;
+
           if (!this.isPointBlocked(nextX, nextY)) {
             a.sprite.x = nextX;
             a.sprite.y = nextY;
             a.sprite.setDepth(a.sprite.y);
 
-            // Flip horizontally based on movement direction without altering scale
-            if (Math.cos(angle) < -0.1) {
-              a.sprite.setScale(-a.baseScale, a.baseScale);
-            } else if (Math.cos(angle) > 0.1) {
-              a.sprite.setScale(a.baseScale, a.baseScale);
-            }
+            // Step-bobbing (gentle vertical bounce during walk cycle)
+            a.stepPhase += moveStep * 0.4;
+            const bob = Math.sin(a.stepPhase) * 0.8;
+            a.sprite.y += bob;
+
+            a.facingRight = Math.cos(ang) >= 0;
+            this.updateDirectionScale(a);
           } else {
-            a.isMoving = false;
+            // Path obstructed: stop wander
+            this.enterState(a, 'idle_breathe');
           }
         } else {
-          a.isMoving = false;
+          // Target reached or timeout
+          this.enterState(a, Math.random() < 0.65 ? 'graze_eat' : 'idle_breathe');
         }
       }
     }
+  }
+
+  public destroy(): void {
+    for (const a of this.animals) {
+      if (a.activeTween) {
+        a.activeTween.stop();
+        a.activeTween = null;
+      }
+    }
+    this.animals = [];
   }
 }
