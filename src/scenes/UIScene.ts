@@ -8,6 +8,9 @@ import { gameState, GERMAN_ROLES } from '../systems/GameState';
 import { PlayerGender, PlayerRole } from '../systems/SaveManager';
 import { TouchControls } from '../ui/TouchControls';
 import { WorldScene } from './WorldScene';
+import { PrintSheetManager } from '../ui/PrintSheet';
+import { DilemmaModal } from '../ui/DilemmaModal';
+import { GERMANIC_DILEMMAS } from '../data/dilemmas';
 
 export type ModalType =
   | 'none'
@@ -22,7 +25,8 @@ export type ModalType =
   | 'lexicon'
   | 'timeline'
   | 'certificate'
-  | 'pause';
+  | 'pause'
+  | 'dilemma';
 
 export class UIScene extends Phaser.Scene {
   public touchControls!: TouchControls;
@@ -33,6 +37,7 @@ export class UIScene extends Phaser.Scene {
   private modalOverlay!: HTMLDivElement;
   private toastContainer!: HTMLDivElement;
   private compassEl: HTMLElement | null = null;
+  private dilemmaModal = new DilemmaModal();
 
   private lexiconSearch = '';
   private lexiconCategory = 'Alle';
@@ -183,6 +188,9 @@ export class UIScene extends Phaser.Scene {
       case 'U':
         this.openCertificate();
         break;
+      case 'R':
+        this.openDilemma();
+        break;
     }
   }
 
@@ -223,6 +231,7 @@ export class UIScene extends Phaser.Scene {
           <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('C')">🔨 [C]</button>
           <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('Z')">⏳ [Z]</button>
           <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('L')">📖 [L]</button>
+          <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('R')">⚖️ [R]</button>
           <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('P')">⏸️ [P]</button>
         </div>
       </div>
@@ -614,7 +623,7 @@ export class UIScene extends Phaser.Scene {
       gameState.markRelicDiscovered(this.activeRelic.id);
       if (this.activeRelic.id === 'relic_pflugschar') {
         gameState.setObjective(1, 3, true);
-      } else if (this.activeRelic.id === 'relic_kalkriese_reitermaske') {
+      } else if (this.activeRelic.id === 'relic_kalkriese_maske' || this.activeRelic.id === 'relic_kalkriese_reitermaske') {
         gameState.setObjective(6, 3, true);
       }
       this.showNotification(`✨ Relikt geborgen: ${this.activeRelic.name}`);
@@ -879,6 +888,7 @@ export class UIScene extends Phaser.Scene {
         </div>
 
         <div class="pause-footer">
+          <button class="btn-secondary" onclick="window.__GERM_UI__.triggerHefterPrint()" style="background:#047857;color:#fff;border-color:#065f46;margin-right:12px;cursor:pointer;">🖨️ Hefterblatt drucken (A4)</button>
           <button class="btn-primary" onclick="window.__GERM_UI__.closeModal()">Weiterspielen [ESC]</button>
         </div>
       </div>
@@ -939,12 +949,49 @@ export class UIScene extends Phaser.Scene {
           </div>
 
           <div class="cert-actions">
-            <button class="btn-secondary" onclick="window.print()">🖨️ Urkunde drucken</button>
+            <button class="btn-secondary" onclick="window.__GERM_UI__.triggerHefterPrint()" style="background:#047857;color:#fff;border-color:#065f46;cursor:pointer;">🖨️ Hefterblatt drucken (A4)</button>
             <button class="btn-primary" onclick="window.__GERM_UI__.closeModal()">Zurück zum Spiel [ESC]</button>
           </div>
         </div>
       </div>
     `;
+  }
+
+  public triggerHefterPrint(): void {
+    const relicsData = GERMAN_RELICS.map((r) => ({
+      title: r.name,
+      note: r.significance || r.historicalContext || 'Bedeutendes archäologisches Relikt der germanischen Eisenzeit.'
+    }));
+    const keyTerms = LEXICON_ENTRIES.slice(0, 3).map((t) => ({
+      term: t.term,
+      definition: t.merksatz ? `${t.definition} (📌 ${t.merksatz})` : t.definition
+    }));
+    const rank = gameState.getMasterRank();
+    PrintSheetManager.triggerPrint({
+      schoolName: 'Staatliche Regelschule Heimbürgeschule Kahla',
+      epochTitle: 'Die Germanen: Sippe, Thing & Limesgrenze',
+      playerName: gameState.playerName,
+      hefterCode: gameState.generateClassroomCode(),
+      rankTitle: `${rank.title} (${rank.rank} · ${gameState.discoveredRelics.size}/5 Relikte geborgen)`,
+      relics: relicsData,
+      dilemmaSummary: gameState.dilemmaSummary || undefined,
+      keyTerms
+    });
+  }
+
+  public openDilemma(): void {
+    const d = GERMANIC_DILEMMAS[0];
+    if (!d) return;
+    this.activeModal = 'dilemma';
+    this.dilemmaModal.open(d, (opt) => {
+      gameState.storyFlags[opt.storyFlag] = true;
+      gameState.dilemmaSummary = `${d.conflictTitle}: ${opt.title} – ${opt.argumentText}`;
+      for (const [k, v] of Object.entries(opt.rewards)) {
+        gameState.inventory[k as GermanItemId] = (gameState.inventory[k as GermanItemId] || 0) + v;
+      }
+      this.showNotification(`⚖️ Thing-Beschluss ratifiziert: ${opt.title}`);
+      this.closeModal();
+    });
   }
 
   // =========================================================================

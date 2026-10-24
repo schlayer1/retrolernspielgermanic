@@ -7,6 +7,8 @@ import { gameState } from '../systems/GameState';
 import { WorldDecorManager } from '../world/decor';
 import { WildlifeManager } from '../world/Wildlife';
 import { LivingWorldManager } from '../world/LivingWorldManager';
+import { ChapterBanner } from '../ui/ChapterBanner';
+import { CompanionManager } from '../world/Companion';
 
 interface InteractiveTarget {
   id: string;
@@ -47,9 +49,12 @@ export class WorldScene extends Phaser.Scene {
   private decorManager!: WorldDecorManager;
   private wildlifeManager!: WildlifeManager;
   private livingWorldManager!: LivingWorldManager;
+  private chapterBanner!: ChapterBanner;
+  private companionManager!: CompanionManager;
   private stepTimer = 0;
   private facing: 'down' | 'up' | 'left' | 'right' = 'down';
   private bakedGroundEpoch = -1;
+  private lastBannerChapter = -1;
   private groundImage?: Phaser.GameObjects.Image;
   private sunlightOverlay?: Phaser.GameObjects.Rectangle;
 
@@ -82,6 +87,17 @@ export class WorldScene extends Phaser.Scene {
     this.wildlifeManager = new WildlifeManager(this);
     this.livingWorldManager = new LivingWorldManager(this);
 
+    this.chapterBanner = new ChapterBanner();
+    this.lastBannerChapter = gameState.chapter;
+    const chDef = CHAPTERS.find((c) => c.id === gameState.chapter);
+    if (chDef) {
+      this.chapterBanner.show({
+        chapterNumber: gameState.chapter,
+        title: chDef.title,
+        subtitle: `${chDef.year} · ${chDef.subtitle}`
+      });
+    }
+
     // 1. Waterways: Weser/Rhein river in the West and marsh ponds
     this.buildRiverAndBridges();
 
@@ -101,6 +117,17 @@ export class WorldScene extends Phaser.Scene {
       .setOrigin(0.5, 0.9)
       .setDepth(gameState.playerY);
     this.livingWorldManager.registerPlayer(this.player);
+
+    this.companionManager = new CompanionManager(this, {
+      key: 'dog_wolfhound',
+      animPrefix: 'dog-wolfhound',
+      name: 'Bran',
+      historicalBreed: 'Germanischer Wolfshund',
+      unlockedChapter: 1
+    });
+    if (gameState.chapter >= 1) {
+      this.companionManager.unlock(gameState.playerX - 24, gameState.playerY);
+    }
 
     // 5. Living wildlife: Wisente, sheep, rams, horses
     this.wildlifeManager.init(this.mapW, this.mapH);
@@ -133,6 +160,18 @@ export class WorldScene extends Phaser.Scene {
 
     // Subscribe to state changes (chapter progress, building construction)
     gameState.subscribe(() => {
+      if (gameState.chapter !== this.lastBannerChapter) {
+        this.lastBannerChapter = gameState.chapter;
+        const cDef = CHAPTERS.find((c) => c.id === gameState.chapter);
+        if (cDef) {
+          this.chapterBanner.show({
+            chapterNumber: gameState.chapter,
+            title: cDef.title,
+            subtitle: `${cDef.year} · ${cDef.subtitle}`
+          });
+        }
+        sound.playBGM(gameState.chapter);
+      }
       this.bakeGermanicTerrainTexture(gameState.chapter);
       this.rebuildChapterEntities();
     });
@@ -317,7 +356,11 @@ export class WorldScene extends Phaser.Scene {
           for (let px = x; px < x + 2 && px < W; px++) {
             let rgb: [number, number, number];
 
-            if (distRiver + jitter * 0.65 < 16) {
+            if (distRiver < 0) {
+              // Deep flowing Weser/Rhein river water
+              const wave = Math.sin(px * 0.18 + py * 0.12);
+              rgb = wave > 0.65 ? [56, 152, 216] : wave < -0.5 ? [24, 104, 164] : [30, 124, 184];
+            } else if (distRiver + jitter * 0.65 < 16) {
               // River Shore (Sand & pebbles)
               rgb = distRiver < 8 ? sampleBlock(a2, 2, 1, px, py) : sampleBlock(a2, 1, 0, px, py);
             } else if (minDistRoad + jitter * 0.55 < 0) {
@@ -385,13 +428,7 @@ export class WorldScene extends Phaser.Scene {
           this.add
             .image(tx * 16 + 8, ty * 16 + 8, 'bohlenweg_timber_bridge')
             .setDepth(ty * 16 + 2)
-            .setScale(0.5);
-        } else {
-          // Flowing water tile from Overworld.png [16, 16, 16, 16]
-          this.add
-            .image(tx * 16 + 8, ty * 16 + 8, 'overworld')
-            .setCrop(16, 16, 16, 16)
-            .setDepth(1);
+            .setScale(0.18);
         }
       }
 
@@ -415,31 +452,36 @@ export class WorldScene extends Phaser.Scene {
     // Deterministic pseudo-random placement for natural immersion
     const seedPoints = [
       // Deep Northern Oaks & Birch woods
-      { x: 30, y: 12, f: 'tree_oak_1', s: 1.2 },
-      { x: 38, y: 10, f: 'tree_oak_2', s: 1.1 },
-      { x: 46, y: 14, f: 'tree_oak_1', s: 1.3 },
-      { x: 55, y: 12, f: 'tree_oak_2', s: 1.2 },
-      { x: 62, y: 16, f: 'tree_oak_1', s: 1.1 },
+      { x: 28, y: 12, f: 'tree_oak_1', s: 1.0 },
+      { x: 38, y: 10, f: 'tree_oak_2', s: 1.0 },
+      { x: 48, y: 12, f: 'tree_oak_1', s: 1.0 },
+      { x: 58, y: 11, f: 'tree_oak_2', s: 1.0 },
+      { x: 68, y: 11, f: 'tree_oak_1', s: 1.0 },
       // Eastern Moor Haze Oaks & Willows
-      { x: 72, y: 32, f: 'tree_oak_2', s: 1.3 },
-      { x: 84, y: 34, f: 'tree_willow', s: 1.2 },
-      { x: 88, y: 52, f: 'tree_willow', s: 1.4 },
+      { x: 72, y: 32, f: 'tree_oak_2', s: 1.05 },
+      { x: 84, y: 34, f: 'tree_willow', s: 1.0 },
+      { x: 88, y: 52, f: 'tree_willow', s: 1.05 },
       // Southern Forest Pines & Oaks
-      { x: 38, y: 72, f: 'tree_oak_1', s: 1.2 },
-      { x: 46, y: 74, f: 'tree_pine_1', s: 1.3 },
-      { x: 68, y: 72, f: 'tree_oak_2', s: 1.2 },
+      { x: 38, y: 72, f: 'tree_oak_1', s: 1.0 },
+      { x: 46, y: 74, f: 'tree_pine_1', s: 1.0 },
+      { x: 74, y: 74, f: 'tree_oak_2', s: 1.0 },
     ];
 
     seedPoints.forEach((p) => {
       const tree = this.decorManager.placeDecor(p.x * 16, p.y * 16, p.f, p.s);
       this.livingWorldManager.registerFlora(tree);
 
-      const bush = this.decorManager.placeDecor(p.x * 16 + 14, p.y * 16 + 10, 'bush_a', 0.9);
+      const bush = this.decorManager.placeDecor((p.x + 4) * 16, (p.y + 1) * 16, 'bush_a', 0.8);
       this.livingWorldManager.registerFlora(bush);
 
-      const fern = this.decorManager.placeDecor(p.x * 16 - 12, p.y * 16 + 14, 'fern_1', 0.8);
+      const fern = this.decorManager.placeDecor((p.x - 4) * 16, (p.y + 1) * 16, 'fern_1', 0.75);
       this.livingWorldManager.registerFlora(fern);
     });
+
+    // Interactive Wild Apple Tree at the sunny village edge
+    const appleTree = this.decorManager.placeDecor(32 * 16, 19 * 16, 'tree_apple', 1.0);
+    this.livingWorldManager.registerFlora(appleTree);
+    this.livingWorldManager.registerResourceHotspot(32 * 16, 19 * 16);
 
     // Scattered meadow flowers & wild grasses
     const meadowFlora = [
@@ -453,118 +495,123 @@ export class WorldScene extends Phaser.Scene {
       { x: 76, y: 38, f: 'fern_2' },
     ];
     meadowFlora.forEach((fl) => {
-      const spr = this.decorManager.placeDecor(fl.x * 16, fl.y * 16, fl.f, 0.9);
+      const spr = this.decorManager.placeDecor(fl.x * 16, fl.y * 16, fl.f, 0.85);
       this.livingWorldManager.registerFlora(spr);
     });
 
     // Scattered rocks, stumps, ferns
     const props = [
-      { x: 26, y: 22, f: 'rock_moss_a' },
-      { x: 44, y: 20, f: 'stump_a' },
-      { x: 54, y: 38, f: 'rock_moss_b' },
-      { x: 68, y: 46, f: 'rock_moss_c' },
-      { x: 76, y: 24, f: 'stump_b' },
-      { x: 82, y: 22, f: 'rock_moss_a' },
-      { x: 32, y: 58, f: 'pebbles_a' },
-      { x: 62, y: 62, f: 'pebbles_b' },
+      { x: 26, y: 20, f: 'rock_moss_a', s: 0.45 },
+      { x: 48, y: 18, f: 'stump_a', s: 0.85 },
+      { x: 58, y: 38, f: 'rock_moss_b', s: 0.45 },
+      { x: 64, y: 48, f: 'rock_moss_c', s: 0.45 },
+      { x: 72, y: 24, f: 'stump_b', s: 0.85 },
+      { x: 86, y: 22, f: 'rock_moss_a', s: 0.45 },
+      { x: 32, y: 58, f: 'pebbles_a', s: 0.85 },
+      { x: 62, y: 62, f: 'pebbles_b', s: 0.85 },
     ];
     props.forEach((p) => {
-      this.decorManager.placeDecor(p.x * 16, p.y * 16, p.f, 1);
+      this.decorManager.placeDecor(p.x * 16, p.y * 16, p.f, p.s);
     });
   }
 
   // =========================================================================
-  // STATIC GERMANIC & ROMAN SETTLEMENTS
+  // STATIC GERMANIC & ROMAN SETTLEMENTS (3-Tier Proportional Scale Hierarchy)
   // =========================================================================
   private buildStaticGermanicWorld(): void {
     // 1. GERMANIC VILLAGE CENTER
-    // Main Longhouse with crossed gable beams
-    this.add.image(35 * 16, 26 * 16, 'langhaus_gable_hall').setOrigin(0.5, 0.9).setDepth(26 * 16);
-    // Thatched round hut spaced 11 tiles west of Langhaus (clear 176px walking street)
-    this.add.image(24 * 16, 26 * 16, 'germanic_round_hut').setOrigin(0.5, 0.9).setDepth(26 * 16);
-    // Large hut spaced 9 tiles east of Langhaus
-    this.add.image(44 * 16, 24 * 16, 'germanic_large_hut').setOrigin(0.5, 0.9).setDepth(24 * 16);
-    // Elevated granary (Pfahlspeicher) north of village
-    this.add.image(41 * 16, 17 * 16, 'pfahlspeicher_grain').setOrigin(0.5, 0.9).setDepth(17 * 16);
-    // Cattle pen & haystacks (placed in the village animal enclosure)
-    this.add.image(24 * 16, 35 * 16, 'cattle_pen_fence').setOrigin(0.5, 0.9).setDepth(35 * 16);
-    this.add.image(30 * 16, 35 * 16, 'haystack_large').setOrigin(0.5, 0.9).setDepth(35 * 16);
-    this.add.image(19 * 16, 28 * 16, 'wagon_covered_cart').setOrigin(0.5, 0.9).setDepth(28 * 16);
-    this.add.image(37 * 16, 32 * 16, 'water_barrels_wood').setOrigin(0.5, 0.9).setDepth(32 * 16);
+    // Main Longhouse with crossed gable beams (Tier 1: 68x58 * 1.65 = 112x96 px)
+    this.add.image(35 * 16, 26 * 16, 'langhaus_gable_hall').setOrigin(0.5, 0.9).setScale(1.65).setDepth(26 * 16);
+    // Thatched round hut spaced 11 tiles west of Langhaus (Tier 1: 68x70 * 1.15 = 78x81 px)
+    this.add.image(24 * 16, 26 * 16, 'germanic_round_hut').setOrigin(0.5, 0.9).setScale(1.15).setDepth(26 * 16);
+    // Large hut spaced 9 tiles east of Langhaus (Tier 1: 76x76 * 1.15 = 87x87 px)
+    this.add.image(44 * 16, 24 * 16, 'germanic_large_hut').setOrigin(0.5, 0.9).setScale(1.15).setDepth(24 * 16);
+    // Elevated granary (Pfahlspeicher) north of village (Tier 1: 64x64 * 1.15 = 74x74 px)
+    this.add.image(41 * 16, 17 * 16, 'pfahlspeicher_grain').setOrigin(0.5, 0.9).setScale(1.15).setDepth(17 * 16);
+    // Cattle pen & haystacks (Tier 2: 30-55 px)
+    this.add.image(24 * 16, 35 * 16, 'cattle_pen_fence').setOrigin(0.5, 0.9).setScale(0.85).setDepth(35 * 16);
+    this.add.image(30 * 16, 35 * 16, 'haystack_large').setOrigin(0.5, 0.9).setScale(0.85).setDepth(35 * 16);
+    this.add.image(19 * 16, 28 * 16, 'wagon_covered_cart').setOrigin(0.5, 0.9).setScale(0.80).setDepth(28 * 16);
+    // Water barrels (Tier 3: 44x22 * 0.50 = 22x11 px)
+    this.add.image(37 * 16, 32 * 16, 'water_barrels_wood').setOrigin(0.5, 0.9).setScale(0.50).setDepth(32 * 16);
 
     // 2. SMELTER & SMITHS AT THE STREAM (Center-East)
-    this.add.image(48 * 16, 33 * 16, 'rennofen_clay_smelter').setOrigin(0.5, 0.9).setDepth(33 * 16);
+    this.add.image(48 * 16, 33 * 16, 'rennofen_clay_smelter').setOrigin(0.5, 0.9).setScale(0.95).setDepth(33 * 16);
     this.livingWorldManager.registerFireSource(48 * 16, 33 * 16, true, 34, 0xf97316);
 
-    this.add.image(55 * 16, 33 * 16, 'charcoal_meiler_smoke').setOrigin(0.5, 0.9).setDepth(33 * 16);
+    this.add.image(55 * 16, 33 * 16, 'charcoal_meiler_smoke').setOrigin(0.5, 0.9).setScale(0.95).setDepth(33 * 16);
     this.livingWorldManager.registerFireSource(55 * 16, 33 * 16, true, 36, 0x64748b);
 
-    this.add.image(46 * 16, 38 * 16, 'anvil_and_forge').setOrigin(0.5, 0.9).setDepth(38 * 16);
+    // Anvil (Tier 3: 36x30 * 0.55 = 20x17 px)
+    this.add.image(46 * 16, 38 * 16, 'anvil_and_forge').setOrigin(0.5, 0.9).setScale(0.55).setDepth(38 * 16);
     this.livingWorldManager.registerFireSource(46 * 16, 38 * 16, true, 32, 0xf59e0b);
 
-    this.add.image(53 * 16, 38 * 16, 'wood_log_pile').setOrigin(0.5, 0.9).setDepth(38 * 16);
-    this.add.image(41 * 16, 36 * 16, 'pelt_drying_frame').setOrigin(0.5, 0.9).setDepth(36 * 16);
+    // Wood log pile (Tier 3: 29x21 * 0.65 = 19x14 px)
+    this.add.image(54 * 16, 38 * 16, 'wood_log_pile').setOrigin(0.5, 0.9).setScale(0.65).setDepth(38 * 16);
+    // Pelt drying frame (Tier 2: 52x52 * 0.75 = 39x39 px)
+    this.add.image(41 * 16, 36 * 16, 'pelt_drying_frame').setOrigin(0.5, 0.9).setScale(0.75).setDepth(36 * 16);
 
     // 3. THINGPLATZ UNDER THE SACRED OAK (South-Center)
-    // Mighty Oak stands at North edge of glade (y=42)
-    const oak = this.decorManager.placeDecor(50 * 16, 42 * 16, 'tree_oak_tall', 1.5, -10);
+    // Mighty Oak stands at North edge of glade (y=44, scale 0.55 -> 53x104px)
+    const oak = this.decorManager.placeDecor(50 * 16, 44 * 16, 'tree_oak_tall', 0.55, -10);
     this.livingWorldManager.registerFlora(oak);
 
-    // Dolmen altar north of the stone circle (y=47)
-    this.add.image(50 * 16, 47 * 16, 'sacred_dolmen_portal').setOrigin(0.5, 0.9).setScale(0.7).setDepth(47 * 16);
+    // Dolmen altar north of the stone circle (y=49)
+    this.add.image(50 * 16, 49 * 16, 'sacred_dolmen_portal').setOrigin(0.5, 0.9).setScale(0.62).setDepth(49 * 16);
 
     // Thing stone circle in center of glade (y=54)
-    this.add.image(50 * 16, 54 * 16, 'thing_stone_circle').setOrigin(0.5, 0.9).setScale(0.75).setDepth(54 * 16);
+    this.add.image(50 * 16, 54 * 16, 'thing_stone_circle').setOrigin(0.5, 0.9).setScale(0.65).setDepth(54 * 16);
 
     // Sacred fire ring positioned in open clearing (y=61)
-    this.add.image(50 * 16, 61 * 16, 'sacred_fire_ring').setOrigin(0.5, 0.9).setScale(0.65).setDepth(61 * 16);
+    this.add.image(50 * 16, 61 * 16, 'sacred_fire_ring').setOrigin(0.5, 0.9).setScale(0.45).setDepth(61 * 16);
     this.livingWorldManager.registerFireSource(50 * 16, 61 * 16, true, 46, 0xfb923c);
 
-    // Flanking sacred runestones (Runestones maintain their mystical rune glow)
-    const runeBlue = this.add.image(43 * 16, 54 * 16, 'runestone_standing_blue').setOrigin(0.5, 0.9).setScale(0.55).setDepth(54 * 16);
+    // Flanking sacred runestones
+    const runeBlue = this.add.image(43 * 16, 54 * 16, 'runestone_standing_blue').setOrigin(0.5, 0.9).setScale(0.60).setDepth(54 * 16);
     this.livingWorldManager.registerMysticalProp(runeBlue);
 
-    const runeGreen = this.add.image(57 * 16, 54 * 16, 'runestone_standing_green').setOrigin(0.5, 0.9).setScale(0.55).setDepth(54 * 16);
+    const runeGreen = this.add.image(57 * 16, 54 * 16, 'runestone_standing_green').setOrigin(0.5, 0.9).setScale(0.60).setDepth(54 * 16);
     this.livingWorldManager.registerMysticalProp(runeGreen);
 
-    // 4. WALDGIRMES ROMAN TRADING POST & FORUM (Southwest) - Solid architecture, no pillar swaying!
-    this.add.image(22 * 16, 48 * 16, 'roman_trader_canopy').setOrigin(0.5, 0.9).setDepth(48 * 16);
-    this.add.image(26 * 16, 50 * 16, 'roman_forum_market').setOrigin(0.5, 0.9).setDepth(50 * 16);
+    // 4. WALDGIRMES ROMAN TRADING POST & FORUM (Southwest)
+    this.add.image(22 * 16, 48 * 16, 'roman_trader_canopy').setOrigin(0.5, 0.9).setScale(0.85).setDepth(48 * 16);
+    this.add.image(27 * 16, 50 * 16, 'roman_forum_market').setOrigin(0.5, 0.9).setScale(0.85).setDepth(50 * 16);
 
     // 5. SACRED MOOR & SANCTUARY OF NERTHUS (East)
-    this.add.image(74 * 16, 42 * 16, 'sacrificial_altar_carved').setOrigin(0.5, 0.9).setDepth(42 * 16);
+    this.add.image(74 * 16, 42 * 16, 'sacrificial_altar_carved').setOrigin(0.5, 0.9).setScale(0.55).setDepth(42 * 16);
 
-    this.add.image(78 * 16, 40 * 16, 'carved_wooden_god_idol').setOrigin(0.5, 0.9).setDepth(40 * 16);
-    this.add.image(70 * 16, 44 * 16, 'braak_totem_pole').setOrigin(0.5, 0.9).setDepth(44 * 16);
+    this.add.image(79 * 16, 40 * 16, 'carved_wooden_god_idol').setOrigin(0.5, 0.9).setScale(0.35).setDepth(40 * 16);
+    this.add.image(69 * 16, 44 * 16, 'braak_totem_pole').setOrigin(0.5, 0.9).setScale(0.55).setDepth(44 * 16);
 
-    const moorRuneB = this.add.image(76 * 16, 46 * 16, 'runestone_standing_blue').setOrigin(0.5, 0.9).setDepth(46 * 16);
+    const moorRuneB = this.add.image(77 * 16, 46 * 16, 'runestone_standing_blue').setOrigin(0.5, 0.9).setScale(0.60).setDepth(46 * 16);
     this.livingWorldManager.registerMysticalProp(moorRuneB);
 
-    const moorRuneG = this.add.image(72 * 16, 46 * 16, 'runestone_standing_green').setOrigin(0.5, 0.9).setDepth(46 * 16);
+    const moorRuneG = this.add.image(71 * 16, 46 * 16, 'runestone_standing_green').setOrigin(0.5, 0.9).setScale(0.60).setDepth(46 * 16);
     this.livingWorldManager.registerMysticalProp(moorRuneG);
 
-    this.add.image(80 * 16, 44 * 16, 'herbs_medicinal_table').setOrigin(0.5, 0.9).setDepth(44 * 16);
+    // Herbs bundle (Tier 3: 48x48 * 0.42 = 20x20 px)
+    this.add.image(81 * 16, 44 * 16, 'herbs_medicinal_table').setOrigin(0.5, 0.9).setScale(0.42).setDepth(44 * 16);
 
     // 6. KALKRIESE PASS & TURF RAMPART (Northeast)
-    this.add.image(78 * 16, 18 * 16, 'rasensodenwall_kalkriese').setOrigin(0.5, 0.9).setDepth(18 * 16);
-    this.add.image(82 * 16, 18 * 16, 'weapon_rack_spears').setOrigin(0.5, 0.9).setDepth(18 * 16);
+    this.add.image(78 * 16, 18 * 16, 'rasensodenwall_kalkriese').setOrigin(0.5, 0.9).setScale(0.90).setDepth(18 * 16);
+    this.add.image(83 * 16, 18 * 16, 'weapon_rack_spears').setOrigin(0.5, 0.9).setScale(0.75).setDepth(18 * 16);
 
     // 7. LIMES WATCHTOWER & PALISADE (Southwest Frontier)
-    this.add.image(24 * 16, 64 * 16, 'limes_watchtower_wood').setOrigin(0.5, 0.9).setDepth(64 * 16);
-    this.add.image(20 * 16, 66 * 16, 'limes_palisade_barrier').setOrigin(0.5, 0.9).setDepth(66 * 16);
-    this.add.image(28 * 16, 66 * 16, 'limes_palisade_barrier').setOrigin(0.5, 0.9).setDepth(66 * 16);
+    this.add.image(24 * 16, 64 * 16, 'limes_watchtower_wood').setOrigin(0.5, 0.9).setScale(1.05).setDepth(64 * 16);
+    this.add.image(21 * 16, 66 * 16, 'limes_palisade_barrier').setOrigin(0.5, 0.9).setScale(0.90).setDepth(66 * 16);
+    this.add.image(29 * 16, 66 * 16, 'limes_palisade_barrier').setOrigin(0.5, 0.9).setScale(0.90).setDepth(66 * 16);
 
     // 8. FOEDERATI SETTLEMENT AT THE RHINE (Southeast)
-    this.add.image(58 * 16, 66 * 16, 'roman_praetorium_red').setOrigin(0.5, 0.9).setDepth(66 * 16);
-    this.add.image(54 * 16, 68 * 16, 'scutum_shield_line').setOrigin(0.5, 0.9).setDepth(68 * 16);
+    this.add.image(58 * 16, 66 * 16, 'roman_praetorium_red').setOrigin(0.5, 0.9).setScale(1.10).setDepth(66 * 16);
+    this.add.image(53 * 16, 68 * 16, 'scutum_shield_line').setOrigin(0.5, 0.9).setScale(0.80).setDepth(68 * 16);
 
-    const vexillum = this.add.image(62 * 16, 68 * 16, 'legion_aquila_vexillum').setOrigin(0.5, 0.9).setDepth(68 * 16);
+    const vexillum = this.add.image(63 * 16, 68 * 16, 'legion_aquila_vexillum').setOrigin(0.5, 0.9).setScale(0.85).setDepth(68 * 16);
     this.livingWorldManager.registerBanner(vexillum);
 
     // 9. Resource Sparkle Hotspots
     this.livingWorldManager.registerResourceHotspot(30 * 16, 22 * 16); // Spelz
     this.livingWorldManager.registerResourceHotspot(30 * 16, 34 * 16); // Heu
-    this.livingWorldManager.registerResourceHotspot(52 * 16, 36 * 16); // Erz
+    this.livingWorldManager.registerResourceHotspot(51 * 16, 36 * 16); // Erz
     this.livingWorldManager.registerResourceHotspot(52 * 16, 32 * 16); // Kohle
     this.livingWorldManager.registerResourceHotspot(18 * 16, 36 * 16); // Bernstein
     this.livingWorldManager.registerResourceHotspot(74 * 16, 20 * 16); // Rasensode
@@ -605,6 +652,17 @@ export class WorldScene extends Phaser.Scene {
 
     // 2. Resource Harvest Sites
     this.targets.push({
+      id: 'res_wildapfel',
+      kind: 'resource',
+      name: 'Wildapfelbaum am Waldrand',
+      sub: '[E] Reife Wildäpfel & Vorräte pflücken',
+      x: 32 * 16,
+      y: 19 * 16,
+      minChapter: 1,
+      itemId: 'spelzweizen',
+    });
+
+    this.targets.push({
       id: 'res_spelz',
       kind: 'resource',
       name: 'Spelzweizen-Acker',
@@ -631,7 +689,7 @@ export class WorldScene extends Phaser.Scene {
       kind: 'resource',
       name: 'Raseneisenerz-Moorlager',
       sub: '[E] Rostbraunes Moorerz stechen',
-      x: 52 * 16,
+      x: 51 * 16,
       y: 36 * 16,
       minChapter: 2,
       itemId: 'raseneisenerz',
@@ -673,11 +731,11 @@ export class WorldScene extends Phaser.Scene {
     // 3. Archaeological Relics (5 Historical artifacts on map)
     GERMAN_RELICS.forEach((rel) => {
       if (ch >= rel.minChapter && !gameState.discoveredRelics.has(rel.id)) {
-        // Glowing archaeological relic site marker
+        // Glowing archaeological relic site marker (Tier 3: 32x32 * 0.65 = 21x21 px)
         const sparkle = this.add
           .image(rel.x * 16, rel.y * 16, 'relic_marker_glow')
           .setOrigin(0.5, 0.8)
-          .setScale(0.85)
+          .setScale(0.65)
           .setDepth(rel.y * 16);
         this.dynamicGroup.add(sparkle);
 
@@ -685,7 +743,7 @@ export class WorldScene extends Phaser.Scene {
           targets: sparkle,
           y: rel.y * 16 - 3,
           alpha: 0.85,
-          scale: 0.95,
+          scale: 0.72,
           duration: 900,
           yoyo: true,
           repeat: -1,
@@ -705,9 +763,29 @@ export class WorldScene extends Phaser.Scene {
       }
     });
 
-    // 4. Construction Plots (Taste B)
+    // 4. Construction Plots & Built Buildings (Taste B)
+    const builtBuildingTextureMap: Record<string, { tex: string; scale: number }> = {
+      wohnstallhaus_ausbau: { tex: 'cattle_pen_fence', scale: 0.85 },
+      rennofen_schmelze: { tex: 'rennofen_clay_smelter', scale: 0.95 },
+      handelssteg_waldgirmes: { tex: 'bohlenweg_timber_bridge', scale: 0.45 },
+      thing_steinring: { tex: 'runestone_standing_blue', scale: 0.60 },
+      moor_bohlenweg: { tex: 'bohlenweg_timber_bridge', scale: 0.45 },
+      rasensodenwall: { tex: 'rasensodenwall_kalkriese', scale: 0.90 },
+      limes_wachturm_bau: { tex: 'limes_palisade_barrier', scale: 0.90 },
+      foederaten_siedlung: { tex: 'wagon_covered_cart', scale: 0.80 },
+    };
     GERMAN_BUILDINGS.forEach((b) => {
-      if (ch >= b.unlockedEpoch && !gameState.builtBuildings.has(b.id)) {
+      if (gameState.builtBuildings.has(b.id)) {
+        const spec = builtBuildingTextureMap[b.id];
+        if (spec) {
+          const builtSpr = this.add
+            .image(b.x * 16, b.y * 16, spec.tex)
+            .setOrigin(0.5, 0.9)
+            .setScale(spec.scale)
+            .setDepth(b.y * 16);
+          this.dynamicGroup.add(builtSpr);
+        }
+      } else if (ch >= b.unlockedEpoch) {
         this.targets.push({
           id: `plot_${b.id}`,
           kind: 'building_plot',
@@ -790,7 +868,7 @@ export class WorldScene extends Phaser.Scene {
         kind: 'interactive_quest',
         name: 'Forum von Waldgirmes',
         sub: '[E] Römerstadt Waldgirmes kartieren',
-        x: 26 * 16,
+        x: 27 * 16,
         y: 50 * 16,
         minChapter: 3,
         questChapter: 3,
@@ -926,7 +1004,7 @@ export class WorldScene extends Phaser.Scene {
         kind: 'interactive_quest',
         name: 'Legionsziegel-Lager',
         sub: '[E] Römischen Ziegelstempel entziffern',
-        x: 28 * 16,
+        x: 29 * 16,
         y: 66 * 16,
         minChapter: 7,
         questChapter: 7,
@@ -981,6 +1059,7 @@ export class WorldScene extends Phaser.Scene {
     const isMoving = this.handleMovement(delta);
     this.wildlifeManager.update(delta, this.player.x, this.player.y);
     this.livingWorldManager.update(delta, this.player.x, this.player.y, isMoving);
+    this.companionManager?.update(this.player, this.targets, delta);
     this.updateInteractiveProximity();
     this.updateQuestCompass();
   }
@@ -1055,6 +1134,20 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
+    const dogSprite = this.companionManager?.getSprite();
+    const dogDist = this.companionManager?.getDistanceTo(this.player.x, this.player.y) ?? Infinity;
+    if (!closestTarget && dogSprite && dogDist < 42) {
+      closestTarget = {
+        id: 'companion_bran',
+        kind: 'interactive_quest',
+        name: 'Bran (Germanischer Wolfshund)',
+        sub: '[E] Treuen Begleiter kraulen',
+        x: dogSprite.x,
+        y: dogSprite.y,
+        minChapter: 1,
+      };
+    }
+
     this.activeTarget = closestTarget;
     this.renderDOMInteractiveLabel(closestTarget);
 
@@ -1068,6 +1161,11 @@ export class WorldScene extends Phaser.Scene {
     if (!this.activeTarget) return;
     const t = this.activeTarget;
     const ui = this.scene.get('UI') as any;
+
+    if (t.id === 'companion_bran') {
+      this.companionManager?.pet();
+      return;
+    }
 
     if (t.kind === 'mentor') {
       sound.playClick();
@@ -1188,7 +1286,7 @@ export class WorldScene extends Phaser.Scene {
       if (objIdx === 2) return { x: 41 * 16, y: 17 * 16, name: 'Pfahlspeicher (Erntelager)' };
       if (objIdx === 3) return { x: 28 * 16, y: 21 * 16, name: 'Eiserne Pflugschar (Acker)' };
     } else if (ch === 2) {
-      if (objIdx === 0) return { x: 52 * 16, y: 36 * 16, name: 'Raseneisenerz-Moorlager' };
+      if (objIdx === 0) return { x: 51 * 16, y: 36 * 16, name: 'Raseneisenerz-Moorlager' };
       if (objIdx === 1) return { x: 52 * 16, y: 32 * 16, name: 'Köhler-Meiler' };
       if (objIdx === 2) return { x: 48 * 16, y: 33 * 16, name: 'Rennofen-Schmelze' };
       if (objIdx === 3) return { x: 46 * 16, y: 38 * 16, name: 'Schmiede-Werkstatt', actionTip: '(drücke C)' };
@@ -1196,7 +1294,7 @@ export class WorldScene extends Phaser.Scene {
       if (objIdx === 0) return { x: 22 * 16, y: 50 * 16, name: 'Marcus Licinius (Handelssteg)' };
       if (objIdx === 1) return { x: 22 * 16, y: 48 * 16, name: 'Römischer Handelsstand', actionTip: '(drücke T)' };
       if (objIdx === 2) return { x: 24 * 16, y: 50 * 16, name: 'Römische Geldkiste' };
-      if (objIdx === 3) return { x: 26 * 16, y: 50 * 16, name: 'Forum von Waldgirmes' };
+      if (objIdx === 3) return { x: 27 * 16, y: 50 * 16, name: 'Forum von Waldgirmes' };
     } else if (ch === 4) {
       if (objIdx === 0) return { x: 50 * 16, y: 56 * 16, name: 'Gesetzessprecher Hagano' };
       if (objIdx === 1) return { x: 48 * 16, y: 54 * 16, name: 'Haselstangen (Thingfrieden)' };
@@ -1211,12 +1309,12 @@ export class WorldScene extends Phaser.Scene {
       if (objIdx === 0) return { x: 78 * 16, y: 20 * 16, name: 'Cheruskerfürst Arminius' };
       if (objIdx === 1) return { x: 78 * 16, y: 18 * 16, name: 'Rasensodenwall Kalkriese' };
       if (objIdx === 2) return { x: 76 * 16, y: 18 * 16, name: 'Sanitäts- & Proviantlager' };
-      if (objIdx === 3) return { x: 80 * 16, y: 18 * 16, name: 'Kalkriese-Reitermaske' };
+      if (objIdx === 3) return { x: 82 * 16, y: 20 * 16, name: 'Kalkriese-Reitermaske' };
     } else if (ch === 7) {
       if (objIdx === 0) return { x: 24 * 16, y: 66 * 16, name: 'Auxiliarsoldat Flavus' };
       if (objIdx === 1) return { x: 22 * 16, y: 66 * 16, name: 'Limes-Schlagbaum & Zoll' };
       if (objIdx === 2) return { x: 24 * 16, y: 64 * 16, name: 'Wachturm-Signalposten' };
-      if (objIdx === 3) return { x: 28 * 16, y: 66 * 16, name: 'Römischer Ziegelstempel' };
+      if (objIdx === 3) return { x: 29 * 16, y: 66 * 16, name: 'Römischer Ziegelstempel' };
     } else if (ch === 8) {
       if (objIdx === 0) return { x: 58 * 16, y: 68 * 16, name: 'Frankenführer Chlodio' };
       if (objIdx === 1) return { x: 56 * 16, y: 68 * 16, name: 'Goldene Runen-Bügelfibel' };
@@ -1234,10 +1332,12 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
-    // Convert game world coords to screen DOM pixel coords
+    // Convert game world coords to screen DOM pixel coords via canvas.getBoundingClientRect()
     const cam = this.cameras.main;
-    const screenX = (target.x - cam.scrollX) * cam.zoom + this.scale.width / 2 - (cam.width * cam.zoom) / 2;
-    const screenY = (target.y - cam.scrollY) * cam.zoom + this.scale.height / 2 - (cam.height * cam.zoom) / 2;
+    const canvas = this.game.canvas;
+    const rect = canvas.getBoundingClientRect();
+    const screenX = ((target.x - cam.worldView.x) / cam.worldView.width) * rect.width + rect.left;
+    const screenY = ((target.y - cam.worldView.y) / cam.worldView.height) * rect.height + rect.top;
 
     this.labelLayer.innerHTML = `
       <div class="world-dom-label" style="left: ${screenX}px; top: ${screenY - 18}px;">

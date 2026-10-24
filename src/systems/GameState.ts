@@ -61,6 +61,8 @@ export class GameState {
   public playerName = 'Folkmar';
   public playTimeSeconds = 0;
   public walkedDistanceMeters = 0;
+  public storyFlags: Record<string, boolean> = {};
+  public dilemmaSummary = '';
 
   // Chapter 4-point gating criteria tracking
   public chapterObjectives: Record<number, boolean[]> = {

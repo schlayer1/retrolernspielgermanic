@@ -26,6 +26,11 @@ export class BootScene extends Phaser.Scene {
       frameHeight: 32,
     });
 
+    this.load.spritesheet('dog_wolfhound', '/assets/fauna/dog_wolfhound.png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+
     // 3. Mentors & Historical Figures
     const mentorSheets = [
       'npc_walburg',
@@ -190,5 +195,14 @@ export class BootScene extends Phaser.Scene {
         });
       });
     });
+
+    // 🐾 Germanischer Wolfshund (dog_wolfhound)
+    this.anims.create({ key: 'dog-wolfhound-idle', frames: [{ key: 'dog_wolfhound', frame: 0 }], frameRate: 1 });
+    this.anims.create({ key: 'dog-wolfhound-walk-down', frames: this.anims.generateFrameNumbers('dog_wolfhound', { start: 0, end: 3 }), frameRate: 6, repeat: -1 });
+    this.anims.create({ key: 'dog-wolfhound-walk-right', frames: this.anims.generateFrameNumbers('dog_wolfhound', { start: 4, end: 7 }), frameRate: 6, repeat: -1 });
+    this.anims.create({ key: 'dog-wolfhound-walk-up', frames: this.anims.generateFrameNumbers('dog_wolfhound', { start: 8, end: 11 }), frameRate: 6, repeat: -1 });
+    this.anims.create({ key: 'dog-wolfhound-sniff', frames: this.anims.generateFrameNumbers('dog_wolfhound', { start: 12, end: 15 }), frameRate: 4, repeat: -1 });
+    this.anims.create({ key: 'dog-wolfhound-sit', frames: this.anims.generateFrameNumbers('dog_wolfhound', { start: 16, end: 19 }), frameRate: 3, repeat: -1 });
+    this.anims.create({ key: 'dog-wolfhound-wag', frames: this.anims.generateFrameNumbers('dog_wolfhound', { start: 20, end: 23 }), frameRate: 5, repeat: -1 });
   }
 }
