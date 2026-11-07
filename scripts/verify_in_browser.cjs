@@ -1,25 +1,28 @@
 const { spawn } = require('child_process');
 const puppeteer = require('puppeteer-core');
 const path = require('path');
+const fs = require('fs');
 
 const CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const ARTIFACT_DIR = '/Users/nicolekeller/.gemini/antigravity/brain/6740cf5c-4a57-4c0b-ad1a-6a9a81a94037';
+const ROOT = path.resolve(__dirname, '..');
+const ARTIFACT_DIR = path.join(ROOT, 'artifacts');
+
+if (!fs.existsSync(ARTIFACT_DIR)) {
+  fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+}
 
 async function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
 async function main() {
-  console.log('Starting Vite preview server on port 4185...');
-  const server = spawn('npx', ['vite', 'preview', '--port', '4185', '--strictPort'], {
-    cwd: path.resolve(__dirname, '..'),
+  console.log('Starting Vite preview server on port 4184...');
+  const server = spawn('npx', ['vite', 'preview', '--port', '4184', '--strictPort'], {
+    cwd: ROOT,
     stdio: 'pipe',
   });
 
-  server.stdout.on('data', (d) => console.log(`[Vite] ${d.toString().trim()}`));
-  server.stderr.on('data', (d) => console.error(`[Vite Err] ${d.toString().trim()}`));
-
-  await sleep(2500);
+  await sleep(2200);
 
   const browser = await puppeteer.launch({
     executablePath: CHROME_PATH,
@@ -32,122 +35,157 @@ async function main() {
 
   try {
     const page = await browser.newPage();
-
-    page.on('pageerror', (err) => {
-      console.error('PAGE ERROR:', err.message);
-      errors.push(`PAGEERROR: ${err.message}`);
-    });
-
+    page.on('pageerror', (err) => errors.push(`PAGEERROR: ${err.message}`));
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
-        console.error('CONSOLE ERROR:', msg.text());
-        errors.push(`CONSOLE: ${msg.text()}`);
+        errors.push(`CONSOLE ERROR: ${msg.text()}`);
       }
     });
-
     page.on('response', (res) => {
       if (res.status() >= 400) {
-        console.warn(`FAILED RESOURCE [${res.status()}]: ${res.url()}`);
         failedUrls.push(`${res.status()} ${res.url()}`);
       }
     });
 
     // 1. Desktop Start Screen (1440x900)
-    console.log('Navigating to http://localhost:4185/ ...');
     await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 2 });
-    await page.goto('http://localhost:4185/', { waitUntil: 'networkidle0' });
-    await sleep(1500);
+    await page.goto('http://localhost:4184/', { waitUntil: 'networkidle0' });
+    await sleep(1400);
 
     await page.screenshot({
-      path: path.join(ARTIFACT_DIR, 'verify_1_desktop_start.png'),
+      path: path.join(ARTIFACT_DIR, 'verify_1_start_screen.png'),
     });
-    console.log('✅ Captured verify_1_desktop_start.png');
+    console.log('Captured verify_1_start_screen.png');
 
     // 2. Mobile Landscape Start Screen (812x375)
     await page.setViewport({ width: 812, height: 375, deviceScaleFactor: 2 });
-    await sleep(600);
+    await sleep(500);
     await page.screenshot({
       path: path.join(ARTIFACT_DIR, 'verify_2_mobile_start.png'),
     });
-    console.log('✅ Captured verify_2_mobile_start.png');
+    console.log('Captured verify_2_mobile_start.png');
 
-    // 3. Switch back to Desktop 1440x900 & Launch Chapter 1
+    // 3. Switch back to Desktop 1440x900 & start Chapter 1 (Intro Dialog)
     await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 2 });
     await sleep(400);
-
-    // Click launch button
     await page.click('#start-game-btn');
-    await sleep(1000);
+    await sleep(800);
 
     await page.screenshot({
       path: path.join(ARTIFACT_DIR, 'verify_3_ch1_dialog.png'),
     });
-    console.log('✅ Captured verify_3_ch1_dialog.png');
+    console.log('Captured verify_3_ch1_dialog.png');
 
-    // Advance dialog or close with Escape
+    // 4. Close intro dialog -> Chapter 1 Overworld + Steinzeit Top-HUD + Hotbar
     await page.keyboard.press('Escape');
-    await sleep(800);
+    await sleep(900);
 
-    // 4. Overworld Chapter 1 view with HUD, Longhouse, and Weidevieh
     await page.screenshot({
       path: path.join(ARTIFACT_DIR, 'verify_4_ch1_overworld.png'),
     });
-    console.log('✅ Captured verify_4_ch1_overworld.png');
+    console.log('Captured verify_4_ch1_overworld.png');
 
-    // 5. Walk West toward River Bridge & Flora
+    // 5. Walk West toward Weser/Rhein river bridge & German nature
     await page.keyboard.down('ArrowLeft');
-    await sleep(1400);
+    await sleep(750);
     await page.keyboard.up('ArrowLeft');
-    await sleep(600);
+    await sleep(500);
 
     await page.screenshot({
-      path: path.join(ARTIFACT_DIR, 'verify_5_water_and_infrastructure.png'),
+      path: path.join(ARTIFACT_DIR, 'verify_5_river_and_flora.png'),
     });
-    console.log('✅ Captured verify_5_water_and_infrastructure.png');
+    console.log('Captured verify_5_river_and_flora.png');
 
-    // 6. Teleport / Walk to the Sacred Moor & Thingplatz
+    // 6. Crafting & Smelting Modal ([C])
+    await page.keyboard.press('KeyC');
+    await sleep(600);
+    await page.screenshot({
+      path: path.join(ARTIFACT_DIR, 'verify_6_crafting_modal.png'),
+    });
+    console.log('Captured verify_6_crafting_modal.png');
+    await page.keyboard.press('Escape');
+    await sleep(400);
+
+    // 7. Progressive 2-Column Lexicon Modal ([L] - 27 entries)
+    await page.keyboard.press('KeyL');
+    await sleep(600);
+    await page.screenshot({
+      path: path.join(ARTIFACT_DIR, 'verify_7_lexicon_modal.png'),
+    });
+    console.log('Captured verify_7_lexicon_modal.png');
+    await page.keyboard.press('Escape');
+    await sleep(400);
+
+    // 8. Interactive Didactic Station (Ackerbau & Dreifelderwirtschaft)
     await page.evaluate(() => {
-      const g = (window).__GERM_GAME__;
-      if (g) {
-        const world = g.scene.getScene('World');
-        if (world && world.player) {
-          world.player.setPosition(50 * 16, 56 * 16); // Thingplatz south approach
-        }
+      if (typeof window.__openStation === 'function') {
+        window.__openStation('station_ackerbau');
       }
     });
-    await sleep(800);
-
+    await sleep(650);
     await page.screenshot({
-      path: path.join(ARTIFACT_DIR, 'verify_6_evolved_location.png'),
+      path: path.join(ARTIFACT_DIR, 'verify_8_interactive_station.png'),
     });
-    console.log('✅ Captured verify_6_evolved_location.png');
+    console.log('Captured verify_8_interactive_station.png');
+    await page.evaluate(() => {
+      const el = document.getElementById('station-modal');
+      if (el) el.remove();
+    });
+    await sleep(400);
 
-    // 7. Open 7-Kachel Pause Dashboard
+    // 9. 360° Artifact Inspector Modal (Pflugschar)
+    await page.evaluate(() => {
+      if (typeof window.__openArtifactInspector === 'function') {
+        window.__openArtifactInspector('relic_pflugschar');
+      }
+    });
+    await sleep(650);
+    await page.screenshot({
+      path: path.join(ARTIFACT_DIR, 'verify_9_artifact_inspector.png'),
+    });
+    console.log('Captured verify_9_artifact_inspector.png');
+    await page.evaluate(() => {
+      const el = document.getElementById('artifact-inspector-modal');
+      if (el) el.remove();
+    });
+    await sleep(400);
+
+    // 10. 7-Tile Pause Dashboard ([P])
     await page.keyboard.press('KeyP');
-    await sleep(800);
-
+    await sleep(600);
     await page.screenshot({
-      path: path.join(ARTIFACT_DIR, 'verify_7_pause_dashboard.png'),
+      path: path.join(ARTIFACT_DIR, 'verify_10_pause_dashboard.png'),
     });
-    console.log('✅ Captured verify_7_pause_dashboard.png');
+    console.log('Captured verify_10_pause_dashboard.png');
+    await page.keyboard.press('Escape');
+    await sleep(400);
 
-    console.log('\n--- VERIFICATION REPORT ---');
-    console.log(`Page Errors: ${errors.length}`);
-    console.log(`Failed Resources: ${failedUrls.length}`);
-    if (errors.length > 0) {
-      console.error('Errors found:\n' + errors.join('\n'));
-    }
-    if (failedUrls.length > 0) {
-      console.warn('Failed URLs:\n' + failedUrls.join('\n'));
+    // 11. Walkable German Interior Scene (Langhaus der Sippe)
+    await page.evaluate(() => {
+      if (typeof window.__enterSampleInterior === 'function') {
+        window.__enterSampleInterior();
+      }
+    });
+    await sleep(900);
+    await page.screenshot({
+      path: path.join(ARTIFACT_DIR, 'verify_11_interior_scene.png'),
+    });
+    console.log('Captured verify_11_interior_scene.png');
+
+    console.log('Errors:', errors.length);
+    if (errors.length > 0) console.error(errors);
+    console.log('Failed URLs:', failedUrls.length);
+    if (failedUrls.length > 0) console.error(failedUrls);
+
+    if (errors.length > 0 || failedUrls.length > 0) {
+      process.exitCode = 1;
+    } else {
+      console.log('🏆 ALL 11 BROWSER VERIFICATION SCREENSHOTS CAPTURED WITH 0 ERRORS!');
     }
   } finally {
     await browser.close();
     server.kill();
-    console.log('Browser closed and Vite server stopped.');
   }
 }
 
-main().catch((err) => {
-  console.error('Verification failed:', err);
-  process.exit(1);
-});
+main();

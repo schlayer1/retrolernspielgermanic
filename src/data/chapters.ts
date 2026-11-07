@@ -19,6 +19,21 @@ export interface ChapterData {
   quiz: QuizQuestion[];
   summary: string;
   unlocksText: string;
+  targetInterior: {
+    buildingId: string;
+    name: string;
+    district: string;
+    mentorInside: string;
+    purpose: string;
+  };
+  music: {
+    trackId: string;
+    title: string;
+    mood: string;
+    bpm?: number;
+    instruments?: string;
+    prompt?: string;
+  };
 }
 
 // ============================================================
@@ -130,6 +145,21 @@ export const CHAPTERS: ChapterData[] = [
     summary:
       'Du hast das Wohnstallhaus erkundet und verstanden, wie sesshafte Germanen als Bauern und Züchter planvoll wirtschafteten.',
     unlocksText: 'Kapitel 2 freigeschaltet: Der Rennofen am Bachlauf raucht!',
+    targetInterior: {
+      "buildingId": "langhaus_sippe",
+      "name": "Germanisches Wohnstallhaus (Langhaus der Sippe)",
+      "district": "Dorfzentrum",
+      "mentorInside": "Walburg",
+      "purpose": "Inspektion des Sippen-Wohnstallhauses, Vorratslagerung & Webstuhl"
+},
+    music: {
+      "trackId": "bgm_warmth",
+      "title": "Im Schutze der Sippe",
+      "mood": "Warm, rustikal, erdverbundene Akustik-Saiten & Holzflöte",
+      "bpm": 82,
+      "instruments": "Laute, Holzflöte, Rahmentrommel, Herdfeuer-Atmosphäre",
+      "prompt": "16-bit SNES acoustic folk chiptune, warm wooden lute, ancient flute, cozy hearth ambiance"
+},
   },
 
   // KAPITEL 2
@@ -182,6 +212,21 @@ export const CHAPTERS: ChapterData[] = [
     summary:
       'Du hast die Funktionsweise des Rennofens begriffen und gelernt, wie eigenständig die germanische Metallurgie entwickelt war.',
     unlocksText: 'Kapitel 3 freigeschaltet: Ein römischer Händler erreicht den Fluss!',
+    targetInterior: {
+      "buildingId": "eisenschmiede_rennofen",
+      "name": "Eisenschmiede am Rennofen",
+      "district": "Handwerkerviertel am Bach",
+      "mentorInside": "Sindolf",
+      "purpose": "Raseneisenerz-Verhüttung, Schlackeabstich & Schmieden am Amboss"
+},
+    music: {
+      "trackId": "bgm_patterns",
+      "title": "Der Glutofen des Schmieds",
+      "mood": "Rhythmisch, metallurgisch, treibende Amboss-Perkussion",
+      "bpm": 96,
+      "instruments": "Amboss-Schläge, Bronze-Rasseln, treibender Bass-Puls",
+      "prompt": "16-bit SNES rhythmic forging music, heavy percussive anvil beats, steady bass pulse, medieval fantasy"
+},
   },
 
   // KAPITEL 3
@@ -234,6 +279,21 @@ export const CHAPTERS: ChapterData[] = [
     summary:
       'Du hast erlebt, dass die Kontakte zwischen Rom und Germanien maßgeblich von friedlichem Handel und Technologietransfer geprägt waren.',
     unlocksText: 'Kapitel 4 freigeschaltet: Das Thing ruft zur Volksversammlung!',
+    targetInterior: {
+      "buildingId": "limes_handelsstation",
+      "name": "Römisch-Germanische Limes-Handelsstation",
+      "district": "Marktplatz Waldgirmes",
+      "mentorInside": "Marcus",
+      "purpose": "Tauschhandel von Bernstein, Fellen & Terra Sigillata mit Römischen Händlern"
+},
+    music: {
+      "trackId": "bgm_desert_epic",
+      "title": "Warenzug an der Grenze",
+      "mood": "Kaufmännisch, weltgewandt, helle Akustikgitarre & Marktglocken",
+      "bpm": 90,
+      "instruments": "Zupfinstrumente, Marktschellen, Holzperkussion",
+      "prompt": "16-bit SNES merchant market theme, brisk acoustic strumming, festive bells, ancient trade road"
+},
   },
 
   // KAPITEL 4
@@ -286,6 +346,21 @@ export const CHAPTERS: ChapterData[] = [
     summary:
       'Du hast die demokratischen Elemente des germanischen Rechtsverständnisses und die Bedeutung der Schlichtung kennengelernt.',
     unlocksText: 'Kapitel 5 freigeschaltet: Der Bohlenweg ins Heilige Moor liegt frei!',
+    targetInterior: {
+      "buildingId": "langhaus_sippe",
+      "name": "Thing-Versammlungshalle",
+      "district": "Heilige Gerichtseiche",
+      "mentorInside": "Hagano",
+      "purpose": "Thing-Rechtsprechung, Wergeld-Verhandlung & Stammesbeschluss"
+},
+    music: {
+      "trackId": "bgm_oracle",
+      "title": "Das Wort der Freien",
+      "mood": "Feierlich, sakral, tiefe Hornklänge & Thingfrieden",
+      "bpm": 74,
+      "instruments": "Nordisches Blashorn, Gong, Männerchor-Harmonien",
+      "prompt": "16-bit SNES solemn Nordic horn, resonant gong, archaic male chant harmonies, sacred tribal law"
+},
   },
 
   // KAPITEL 5
@@ -339,6 +414,21 @@ export const CHAPTERS: ChapterData[] = [
     summary:
       'Du hast die enge Naturverbundenheit des germanischen Glaubens und die archäologische Bedeutung der Moorfunde verstanden.',
     unlocksText: 'Kapitel 6 freigeschaltet: Römische Legionen marschieren gen Kalkriese!',
+    targetInterior: {
+      "buildingId": "langhaus_sippe",
+      "name": "Heiligtum der Seherin",
+      "district": "Heiliger Hain & Moor",
+      "mentorInside": "Albruna",
+      "purpose": "Runen-Orakel, Weissagung & Mooropfer-Ritual"
+},
+    music: {
+      "trackId": "bgm_mist",
+      "title": "Nebel über dem Moor",
+      "mood": "Mystisch, geheimnisvoll, sphärische Harfe & Flötenelegie",
+      "bpm": 68,
+      "instruments": "Harfe, Panflöte, sanfte Kristallglocken",
+      "prompt": "16-bit SNES mystical dark forest ambient, airy pan flute, gentle glass chimes, mysterious ancient bog"
+},
   },
 
   // KAPITEL 6
@@ -392,6 +482,21 @@ export const CHAPTERS: ChapterData[] = [
     summary:
       'Du hast die taktischen Hintergründe von Kalkriese verstanden, ohne Kriegsverherrlichung, sondern als Analyse von Geografie und Bündnispolitik.',
     unlocksText: 'Kapitel 7 freigeschaltet: Die befestigte Reichsgrenze am Limes entsteht!',
+    targetInterior: {
+      "buildingId": "eisenschmiede_rennofen",
+      "name": "Kriegslager im Teutoburger Wald",
+      "district": "Schlucht von Kalkriese",
+      "mentorInside": "Arminius",
+      "purpose": "Schlachtplanung am Rasensodenwall & taktischer Hinterhalt"
+},
+    music: {
+      "trackId": "bgm_desert_whispers",
+      "title": "Sturm im Engpass",
+      "mood": "Dramatisch, angespannt, marschierende Trommeln & Kriegshörner",
+      "bpm": 108,
+      "instruments": "Militärische Pauken, schneidende Bläser-Stabs, Marschrhythmus",
+      "prompt": "16-bit SNES dramatic battle overture, martial snare drums, sharp brass stabs, fateful forest ambush"
+},
   },
 
   // KAPITEL 7
@@ -445,6 +550,21 @@ export const CHAPTERS: ChapterData[] = [
     summary:
       'Du hast den Alltag an der Grenze erlebt und gelernt, wie der Limes Kulturkontakt und wirtschaftliche Koexistenz förderte.',
     unlocksText: 'Kapitel 8 freigeschaltet: Der Wandel der Spätantike und die Föderaten!',
+    targetInterior: {
+      "buildingId": "limes_handelsstation",
+      "name": "Wachstube am Limes",
+      "district": "Limes-Wachturm & Grenzvicus",
+      "mentorInside": "Flavus",
+      "purpose": "Grenzkontrolle, Passierscheine & Zollabkommen zwischen Reich und Stamm"
+},
+    music: {
+      "trackId": "bgm_heart",
+      "title": "Frieden an der Palisade",
+      "mood": "Wachsam, wehrhaft, stetige Kadenz & Grenzwacht",
+      "bpm": 88,
+      "instruments": "Trompete, Marschtrommel, Akustikbass",
+      "prompt": "16-bit SNES frontier guard theme, steady cadence, military trumpet motif, fortified border post"
+},
   },
 
   // KAPITEL 8
@@ -498,5 +618,20 @@ export const CHAPTERS: ChapterData[] = [
     summary:
       'Du hast das gesamte historische Panorama der Germanen durchlaufen und fundiertes Wissen über Wirtschaft, Recht, Religion und Kulturtransfer erworben.',
     unlocksText: '🎉 Alle 8 Kapitel gemeistert! Drücke [Taste U], um dein Chronisten-Diplom zu öffnen!',
+    targetInterior: {
+      buildingId: 'limes_handelsstation',
+      name: 'Fürstensaal der Föderaten',
+      district: 'Rheinsiedlung',
+      mentorInside: 'Chlodio',
+      purpose: 'Föderatenvertrag & Kulturtransfer in die Spätantike',
+    },
+    music: {
+      trackId: 'bgm_warmth',
+      title: 'Die Wiege neuer Reiche',
+      mood: 'Erhaben, zukunftsweisend, reiche Orchesterklänge',
+      bpm: 92,
+      instruments: 'Erhabene Streicher, edle Trompeten, volles 16-Bit-Orchester',
+      prompt: '16-bit SNES uplifting finale, soaring strings, noble trumpets, historical legacy and transition',
+    },
   },
 ];

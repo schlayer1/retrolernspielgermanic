@@ -1,3 +1,5 @@
+import { FootstepAudioSynthesizer, GroundSurface } from './FootstepAudio';
+
 class RetroSynthesizer {
   private getContext: () => AudioContext | null;
   private isPlaying = false;
@@ -131,6 +133,7 @@ class SoundSystem {
   public bgmMuted = false;
   private bgmAudio: HTMLAudioElement | null = null;
   private synth: RetroSynthesizer;
+  private footsteps = new FootstepAudioSynthesizer();
   private bgmVolume = 0.28;
   private currentChapter = 1;
 
@@ -309,6 +312,18 @@ class SoundSystem {
     osc.stop(ctx.currentTime + 0.04);
   }
 
+  public click(): void {
+    this.playClick();
+  }
+
+  public playSuccess(): void {
+    this.playQuest();
+  }
+
+  public playFanfare(): void {
+    this.playQuest();
+  }
+
   public playCollect(): void {
     const ctx = this.getContext();
     if (!ctx) return;
@@ -417,6 +432,20 @@ class SoundSystem {
       osc.stop(now + idx * 0.06 + 0.16);
     });
   }
+
+  public step(surface: GroundSurface = 'grass'): void {
+    if (this.muted) return;
+    const ctx = this.getContext();
+    if (ctx) {
+      this.footsteps.setContext(ctx);
+      this.footsteps.playFootstep(surface);
+    }
+  }
+
+  public playFootstep(surface: GroundSurface = 'grass'): void {
+    this.step(surface);
+  }
 }
 
 export const sound = new SoundSystem();
+export type { GroundSurface };

@@ -52,6 +52,9 @@ export class GameState {
   public quizPerfect = new Set<number>();
   public discoveredRelics = new Set<string>();
   public lexiconRead = new Set<string>();
+  public get unlockedLexicon(): Set<string> {
+    return this.lexiconRead;
+  }
   public visitedSanctuary = false;
   public playerX = 35 * 16;
   public playerY = 32 * 16;

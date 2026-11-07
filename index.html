@@ -1611,6 +1611,272 @@
           margin-bottom: 6px;
         }
       }
+
+      /* =====================================================
+         STEINZEIT / SKILL HUD TOP BAR & BARS & HOTBAR
+         ===================================================== */
+      .hud-top {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        pointer-events: none;
+        z-index: 22;
+        gap: 10px;
+      }
+
+      .hud-card {
+        background: rgba(20, 13, 8, 0.94);
+        border: 2px solid #b7894b;
+        border-radius: 9px;
+        padding: 7px 11px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65);
+        color: #fef3c7;
+        pointer-events: auto;
+      }
+
+      #hud-quest-box {
+        max-width: 440px;
+        flex: 1;
+      }
+
+      #hud-chapter-title {
+        font-family: 'Cinzel', Georgia, serif;
+        font-size: 13px;
+        font-weight: 800;
+        color: #fef08a;
+        margin-bottom: 4px;
+        border-bottom: 1px dashed rgba(201, 171, 120, 0.45);
+        padding-bottom: 3px;
+      }
+
+      #hud-quest {
+        font-size: 11.5px;
+        color: #e8dcc4;
+        line-height: 1.35;
+      }
+
+      .quest-steps-list {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .quest-step-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: #fef3c7;
+      }
+
+      .quest-step-item.step-done {
+        color: #86efac;
+        text-decoration: line-through;
+        opacity: 0.85;
+      }
+
+      .hud-compass-line {
+        margin-top: 5px;
+        padding-top: 4px;
+        border-top: 1px dashed rgba(201, 171, 120, 0.35);
+        font-size: 11px;
+        font-weight: 700;
+        color: #7dd3fc;
+      }
+
+      .hud-right {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-end;
+        pointer-events: none;
+      }
+
+      #hud-bars-card {
+        min-width: 245px;
+      }
+
+      .bar-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        margin: 2px 0;
+      }
+
+      .bar-row > span:first-child {
+        min-width: 98px;
+        font-weight: 600;
+      }
+
+      .bar-track {
+        width: 95px;
+        height: 9px;
+        background: #2a1d12;
+        border: 1px solid #6e4720;
+        border-radius: 5px;
+        overflow: hidden;
+      }
+
+      .bar-fill {
+        height: 100%;
+        transition: width 0.25s ease;
+      }
+
+      .bar-fill.orange {
+        background: linear-gradient(90deg, #ea580c, #fb923c);
+      }
+
+      .bar-fill.blue {
+        background: linear-gradient(90deg, #0284c7, #38bdf8);
+      }
+
+      .bar-fill.yellow {
+        background: linear-gradient(90deg, #ca8a04, #facc15);
+      }
+
+      .hud-subinfo {
+        font-size: 10.5px;
+        color: #d8c7a8;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+      }
+
+      .hud-btn-row {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        max-width: 520px;
+        pointer-events: auto;
+      }
+
+      .hud-btn {
+        background: linear-gradient(180deg, #4a2d15 0%, #2d1a0b 100%);
+        color: #fde68a;
+        border: 1.5px solid #b7894b;
+        border-radius: 7px;
+        padding: 4px 8px;
+        font-size: 11.5px;
+        font-weight: 700;
+        cursor: pointer;
+        pointer-events: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+        white-space: nowrap;
+      }
+
+      .hud-btn:hover,
+      .hud-btn.active {
+        background: linear-gradient(180deg, #7f1d1d 0%, #450a0a 100%);
+        border-color: #f6c453;
+        color: #fff8dc;
+      }
+
+      .key-badge {
+        display: inline-block;
+        background: #f6c453;
+        color: #1f140a;
+        font-weight: 900;
+        font-size: 10px;
+        padding: 1px 4px;
+        border-radius: 3px;
+        line-height: 1.1;
+      }
+
+      #btn-mobile-menu,
+      .mobile-only-menu-btn {
+        display: none !important;
+      }
+
+      .hud-bottom {
+        position: fixed;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        pointer-events: none;
+        z-index: 24;
+      }
+
+      #hud-hint {
+        background: rgba(15, 10, 6, 0.88);
+        border: 1.5px solid #c9ab78;
+        color: #fde68a;
+        padding: 3px 11px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.55);
+        white-space: nowrap;
+      }
+
+      .hud-bottom-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        pointer-events: auto;
+      }
+
+      #hud-hotbar {
+        display: flex;
+        gap: 4px;
+        background: rgba(20, 14, 10, 0.92);
+        border: 2px solid #8b5a2b;
+        border-radius: 9px;
+        padding: 4px 6px;
+        pointer-events: auto;
+      }
+
+      .hotbar-slot {
+        width: 34px;
+        height: 34px;
+        background: rgba(42, 29, 18, 0.9);
+        border: 1.5px solid #6e4720;
+        border-radius: 6px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .hotbar-slot.has-item {
+        border-color: #c9ab78;
+      }
+
+      .hotbar-slot.relic-slot {
+        border-color: rgba(251, 191, 36, 0.55);
+        background: rgba(58, 30, 18, 0.9);
+      }
+
+      .hotbar-slot img {
+        width: 22px;
+        height: 22px;
+        image-rendering: pixelated;
+      }
+
+      .hotbar-slot .count {
+        position: absolute;
+        bottom: 1px;
+        right: 3px;
+        font-size: 9.5px;
+        font-weight: 800;
+        color: #fef08a;
+        text-shadow: 0 1px 2px #000;
+      }
     </style>
   </head>
   <body>

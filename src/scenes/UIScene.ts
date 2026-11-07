@@ -4,12 +4,16 @@ import { CHAPTERS, HIGHLIGHT_TERMS } from '../data/chapters';
 import { GERMAN_BUILDINGS, GERMAN_ITEMS, GERMAN_RECIPES, GERMAN_TRADES, GermanItemId } from '../data/items';
 import { LEXICON_ENTRIES } from '../data/lexicon';
 import { GERMAN_RELICS, GermanRelic } from '../data/relics';
+import { STATIONS } from '../data/stations';
 import { gameState, GERMAN_ROLES } from '../systems/GameState';
 import { PlayerGender, PlayerRole } from '../systems/SaveManager';
 import { TouchControls } from '../ui/TouchControls';
 import { WorldScene } from './WorldScene';
 import { PrintSheetManager } from '../ui/PrintSheet';
 import { DilemmaModal } from '../ui/DilemmaModal';
+import { StationModal } from '../ui/StationModal';
+import { ArtifactInspectorModal } from '../ui/ArtifactInspectorModal';
+import { TimelineModal } from '../ui/TimelineModal';
 import { GERMANIC_DILEMMAS } from '../data/dilemmas';
 
 export type ModalType =
@@ -38,6 +42,10 @@ export class UIScene extends Phaser.Scene {
   private toastContainer!: HTMLDivElement;
   private compassEl: HTMLElement | null = null;
   private dilemmaModal = new DilemmaModal();
+  private stationModal = new StationModal();
+  private artifactInspector = new ArtifactInspectorModal();
+  private timelineModal = new TimelineModal();
+  private onDialogClose?: () => void;
 
   private lexiconSearch = '';
   private lexiconCategory = 'Alle';
@@ -58,6 +66,13 @@ export class UIScene extends Phaser.Scene {
     this.initDOMStructure();
     this.touchControls = new TouchControls((key) => this.handleShortcutKey(key));
     this.registerKeyboardShortcuts();
+
+    const win = window as any;
+    win.__GERM_UI__ = this;
+    win.__openStation = (id: string) => this.openStation(id);
+    win.__openArtifactInspector = (id: string) => this.openArtifactInspector(id);
+    win.__openTimeline = () => this.openTimeline();
+    win.__triggerPrintSheet = () => this.triggerHefterPrint();
 
     gameState.subscribe(() => {
       this.renderHUD();
@@ -173,6 +188,7 @@ export class UIScene extends Phaser.Scene {
       case 'B':
         this.openBuildingOverview();
         break;
+      case 'H':
       case 'T':
         this.openTrading();
         break;
@@ -191,6 +207,16 @@ export class UIScene extends Phaser.Scene {
       case 'R':
         this.openDilemma();
         break;
+      case 'F':
+        this.eatFood();
+        break;
+      case 'M':
+        sound.toggleBGM();
+        this.renderHUD();
+        break;
+      case 'K':
+        this.openStartScreen();
+        break;
     }
   }
 
@@ -206,77 +232,247 @@ export class UIScene extends Phaser.Scene {
     }, 2800);
   }
 
-  // =========================================================================
-  // HUD RENDERING
-  // =========================================================================
-  private renderHUD(): void {
-    const ch = CHAPTERS.find((c) => c.id === gameState.chapter) || CHAPTERS[0];
-    const roleDef = GERMAN_ROLES.find((r) => r.id === gameState.role) || GERMAN_ROLES[0];
-
-    this.hudHeader.innerHTML = `
-      <div class="hud-left">
-        <div class="hud-ch-badge">Kapitel ${ch.id}: ${ch.year}</div>
-        <div class="hud-ch-title">${ch.title}</div>
-      </div>
-      <div class="hud-right">
-        <div class="hud-player-tag">
-          <span class="hud-role-icon">${roleDef.name.split(' ')[0]}</span>
-          <span class="hud-player-name">${gameState.playerName}</span>
-        </div>
-        <div class="hud-relics-badge" title="Gefundene Relikte">
-          🏺 ${gameState.discoveredRelics.size}/5
-        </div>
-        <div class="hud-quick-buttons">
-          <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('I')">🎒 [I]</button>
-          <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('C')">🔨 [C]</button>
-          <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('Z')">⏳ [Z]</button>
-          <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('L')">📖 [L]</button>
-          <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('R')">⚖️ [R]</button>
-          <button class="hud-btn" onclick="window.__GERM_UI__.handleShortcutKey('P')">⏸️ [P]</button>
-        </div>
-      </div>
-    `;
-
-    // Expose UI scene globally for HTML inline handlers
-    (window as any).__GERM_UI__ = this;
+  public eatFood(): void {
+    const foods: GermanItemId[] = ['fleisch_braten', 'spelzweizen', 'ziegenmilch'];
+    for (const f of foods) {
+      if ((gameState.inventory[f] || 0) > 0) {
+        gameState.removeItem(f, 1);
+        sound.playCollect();
+        this.showNotification(`🍎 Du stärkst dich mit ${GERMAN_ITEMS[f].name}! (+15 Vorräte)`);
+        this.renderHUD();
+        return;
+      }
+    }
+    sound.playClick();
+    this.showNotification('🍎 Kein Proviant im Beutel! Sammle Wildäpfel oder ernte Spelzweizen.');
   }
 
-  private renderQuestTracker(): void {
+  public openStation(stationId: string): void {
+    const st = STATIONS.find((s) => s.id === stationId);
+    if (!st) return;
+    this.closeModal();
+    this.stationModal.open(st, () => {
+      this.showNotification(`🏛️ Station gemeistert: ${st.title}! (+100 Punkte)`);
+      sound.playSuccess();
+    });
+  }
+
+  public openArtifactInspector(relicId: string): void {
+    const rel = GERMAN_RELICS.find((r) => r.id === relicId);
+    if (!rel) return;
+    this.closeModal();
+    this.artifactInspector.open(rel, () => {
+      this.renderHUD();
+    });
+  }
+
+  // =========================================================================
+  // HUD RENDERING (1:1 STEINZEIT / SKILL STANDARD)
+  // =========================================================================
+  public renderHUD(): void {
+    this.hudHeader.style.display = this.activeModal === 'start' ? 'none' : 'flex';
+    this.questBox.style.display = this.activeModal === 'start' ? 'none' : 'flex';
+    if (this.touchControls) {
+      this.touchControls.setVisible(this.activeModal === 'none');
+    }
+
     const ch = CHAPTERS.find((c) => c.id === gameState.chapter) || CHAPTERS[0];
+    const roleDef = GERMAN_ROLES.find((r) => r.id === gameState.role) || GERMAN_ROLES[0];
     const objs = gameState.chapterObjectives[ch.id] || [false, false, false, false];
     const completedCount = objs.filter((x) => x).length;
     const activeIdx = objs.findIndex((done) => !done);
 
     const taskText =
       activeIdx === -1
-        ? `Alle Aufgaben gemeistert! Sprich mit ${ch.mentorName} für das Kapitel-Quiz (E).`
+        ? `Alle Aufgaben gemeistert! Sprich mit ${ch.mentorName} für das Sippen-Quiz (E).`
         : ch.hints[activeIdx] || ch.questDescription;
 
-    this.questBox.innerHTML = `
-      <div class="quest-header">
-        <span class="quest-title-icon">⚔️</span>
-        <span class="quest-title-text">${ch.title} · ${ch.year}</span>
-        <span class="quest-counter ${completedCount === 4 ? 'quest-done' : ''}">${completedCount}/4</span>
-      </div>
-      <div class="hud-active-task">
-        <strong>Aufgabe:</strong> ${taskText}
-      </div>
-      <div class="hud-compass" id="hud-compass">${gameState.compassText}</div>
-      <div class="quest-objectives-list" style="margin-top: 6px;">
-        ${ch.hints
-          .map(
-            (hint, i) => `
-          <div class="quest-item ${objs[i] ? 'done' : ''}">
-            <span class="q-checkbox">${objs[i] ? '✓' : '○'}</span>
-            <span class="q-text">${hint}</span>
+    const supplyVal = Math.min(100, 60 + gameState.builtBuildings.size * 6 + Object.keys(gameState.inventory).length * 4);
+    const orderVal = Math.min(100, 55 + gameState.completedChapters.size * 5 + gameState.discoveredRelics.size * 6);
+    const lawVal = Math.min(100, Math.round((gameState.unlockedLexicon.size / 27) * 100));
+
+    this.hudHeader.innerHTML = `
+      <div class="hud-card" id="hud-quest-box">
+        <div id="hud-chapter-title">
+          ⚔️ Kap. ${ch.id}: ${ch.title} (${ch.year}) · ${gameState.playerName} (${roleDef.name})
+        </div>
+        <div id="hud-quest">
+          <div style="margin-bottom:4px;">📋 <strong>Aufgabe:</strong> ${taskText}</div>
+          <div class="quest-steps-list" style="margin:4px 0;">
+            ${ch.hints
+              .map(
+                (h, idx) => `
+              <div class="quest-step-item ${objs[idx] ? 'step-done' : ''}">
+                <span>${objs[idx] ? '✅' : '⬜'}</span>
+                <span>${h}</span>
+              </div>
+            `
+              )
+              .join('')}
           </div>
-        `,
-          )
-          .join('')}
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:4px;">
+            <span style="font-size:10.5px;color:${completedCount === 4 ? '#4ade80' : '#fde68a'};">
+              ${completedCount === 4 ? `✨ Bereit für Sippen-Quiz bei ${ch.mentorName} [E]!` : `💡 Mentor: ${ch.mentorName} [E]`}
+            </span>
+            <button id="btn-open-mentor-dialog" class="hud-btn" style="padding:2px 7px;font-size:10.5px;">
+              💬 ${ch.mentorName}
+            </button>
+          </div>
+        </div>
+        <div id="hud-compass" class="hud-compass-line">${gameState.compassText}</div>
+      </div>
+
+      <div class="hud-right">
+        <div class="hud-card" id="hud-bars-card">
+          <div class="bar-row" title="Vorräte & Ernte (Getreide & Vieh)">
+            <span>🍖 Vorräte</span>
+            <div class="bar-track"><div class="bar-fill orange" id="bar-supply" style="width:${supplyVal}%"></div></div>
+            <span id="val-supply">${supplyVal}</span>
+          </div>
+          <div class="bar-row" title="Sippen-Schutz & Wehrkraft (Wall & Waffen)">
+            <span>🛡️ Sippen-Schutz</span>
+            <div class="bar-track"><div class="bar-fill blue" id="bar-order" style="width:${orderVal}%"></div></div>
+            <span id="val-order">${orderVal}</span>
+          </div>
+          <div class="bar-row" title="Stammeswissen & Brauchtum (Runen & Recht)">
+            <span>📜 Stammeswissen</span>
+            <div class="bar-track"><div class="bar-fill yellow" id="bar-law" style="width:${lawVal}%"></div></div>
+            <span id="val-law">${lawVal}</span>
+          </div>
+          <div class="hud-subinfo">
+            Lexikon: <b id="hud-lex-count">${gameState.unlockedLexicon.size}/27</b> ·
+            🏺 Relikte: <b>${gameState.discoveredRelics.size}/5</b> ·
+            <span id="hud-time-of-day">☀️ Tag</span> ·
+            🎵 Musik: <b id="hud-music-state">${sound.bgmMuted ? 'Aus' : 'An'}</b>
+          </div>
+        </div>
+
+        <div class="hud-btn-row">
+          <button class="hud-btn ${this.activeModal === 'pause' ? 'active' : ''}" id="btn-pause" data-modal="pause" title="Pause-Dashboard [P / ESC]"><span class="key-badge">P</span> ⏸ Pause</button>
+          <button class="hud-btn ${this.activeModal === 'inventory' ? 'active' : ''}" id="btn-bag" data-modal="inventory" title="Beutel & Relikte [I]"><span class="key-badge">I</span> 🎒 Beutel</button>
+          <button class="hud-btn ${this.activeModal === 'craft' ? 'active' : ''}" id="btn-craft" data-modal="craft" title="Handwerk [C]"><span class="key-badge">C</span> Handwerk</button>
+          <button class="hud-btn ${this.activeModal === 'trade' ? 'active' : ''}" id="btn-trade" data-modal="trade" title="Handel [H]"><span class="key-badge">H</span> Handel</button>
+          <button class="hud-btn ${this.activeModal === 'lexicon' ? 'active' : ''}" id="btn-lexicon" data-modal="lexicon" title="Germanen-Lexikon (27 Begriffe) [L]"><span class="key-badge">L</span> Lexikon</button>
+          <button class="hud-btn ${this.activeModal === 'timeline' ? 'active' : ''}" id="btn-timeline" data-modal="timeline" title="Epochen-Zeitstrahl [Z]"><span class="key-badge">Z</span> Zeitstrahl</button>
+          <button class="hud-btn" id="btn-eat" data-action="eat" title="Proviant essen [F]"><span class="key-badge">F</span> Essen</button>
+          <button class="hud-btn" id="btn-music" data-action="music" title="Musik an/aus [M]"><span class="key-badge">M</span> 🎵 Musik</button>
+          <button class="hud-btn" id="btn-epoch" data-modal="start" title="Kapitel wählen [K]"><span class="key-badge">K</span> Epoche</button>
+          <button class="hud-btn ${this.activeModal === 'certificate' ? 'active' : ''}" id="btn-cert" data-modal="certificate" title="Chronisten-Diplom [U]"><span class="key-badge">U</span> Diplom</button>
+        </div>
       </div>
     `;
 
-    this.compassEl = this.questBox.querySelector('#hud-compass');
+    const mentorBtn = this.hudHeader.querySelector('#btn-open-mentor-dialog');
+    if (mentorBtn) {
+      mentorBtn.addEventListener('click', () => {
+        sound.playClick();
+        this.showMentorDialog(gameState.chapter);
+      });
+    }
+
+    this.hudHeader.querySelectorAll('.hud-btn').forEach((btn) => {
+      if (btn.id === 'btn-open-mentor-dialog') return;
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        if (action === 'eat') {
+          this.eatFood();
+          return;
+        }
+        if (action === 'music') {
+          this.handleShortcutKey('M');
+          return;
+        }
+        const m = btn.getAttribute('data-modal') as ModalType;
+        if (m) {
+          if (m === 'start') {
+            this.openStartScreen();
+          } else if (m === 'pause') {
+            this.openPauseMenu();
+          } else if (m === 'inventory') {
+            this.openInventory();
+          } else if (m === 'craft') {
+            this.openCrafting();
+          } else if (m === 'trade') {
+            this.openTrading();
+          } else if (m === 'lexicon') {
+            this.openLexicon();
+          } else if (m === 'timeline') {
+            this.openTimeline();
+          } else if (m === 'certificate') {
+            this.openCertificate();
+          }
+        }
+      });
+    });
+
+    (window as any).__GERM_UI__ = this;
+  }
+
+  public renderQuestTracker(): void {
+    this.questBox.style.display = this.activeModal === 'start' ? 'none' : 'flex';
+    const hotbarItems: GermanItemId[] = [
+      'spelzweizen',
+      'raseneisenerz',
+      'holzkohle',
+      'fibel',
+      'bernstein',
+      'rasensode',
+      'fleisch_braten',
+      'heuballen',
+    ];
+
+    const slotsHtml = hotbarItems
+      .map((itemId, idx) => {
+        const def = GERMAN_ITEMS[itemId];
+        const qty = gameState.inventory[itemId] || 0;
+        return `
+          <div class="hotbar-slot ${qty > 0 ? 'has-item' : ''}" data-slot-item="${itemId}" title="${def ? def.name : itemId} (${qty} im Beutel)">
+            <img src="${def ? def.icon : '/assets/icons/fibel.png'}" alt="${def ? def.name : itemId}" style="opacity:${qty > 0 ? '1' : '0.32'}" />
+            <span class="count">${qty > 0 ? qty : idx + 1}</span>
+          </div>
+        `;
+      })
+      .join('');
+
+    const relicSlotsHtml = GERMAN_RELICS.map((r) => {
+      const found = gameState.discoveredRelics.has(r.id);
+      return `
+        <div class="hotbar-slot relic-slot ${found ? 'has-item' : ''}" data-slot-relic="${r.id}" title="${found ? r.name : `Unentdecktes Relikt (ab Kap. ${r.minChapter})`}">
+          <img src="${r.icon}" alt="${r.name}" style="opacity:${found ? '1' : '0.25'}" />
+          <span class="count">${found ? '★' : '🔒'}</span>
+        </div>
+      `;
+    }).join('');
+
+    this.questBox.innerHTML = `
+      <div id="hud-hint">WASD / Pfeiltasten = Bewegen · E = Interagieren · F = Essen · C = Handwerk · I = Beutel · P = Pause</div>
+      <div class="hud-bottom-row">
+        <div id="hud-hotbar">
+          ${slotsHtml}
+          ${relicSlotsHtml}
+        </div>
+        <button class="hud-btn" id="btn-hotbar-bag" title="Rucksack öffnen [I]">
+          <span class="key-badge">I</span> 🎒 Rucksack
+        </button>
+      </div>
+    `;
+
+    this.questBox.querySelector('#btn-hotbar-bag')?.addEventListener('click', () => {
+      this.openInventory();
+    });
+
+    this.questBox.querySelectorAll('[data-slot-item]').forEach((el) => {
+      el.addEventListener('click', () => {
+        this.openInventory();
+      });
+    });
+
+    this.questBox.querySelectorAll('[data-slot-relic]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const rId = el.getAttribute('data-slot-relic');
+        if (rId) this.openArtifactInspector(rId);
+      });
+    });
   }
 
   update(): void {
@@ -330,9 +526,11 @@ export class UIScene extends Phaser.Scene {
             <label>2. Figur wählen:</label>
             <div class="start-gender-row">
               <button class="gender-btn ${gameState.gender === 'male' ? 'active' : ''}" onclick="window.__GERM_UI__.setGender('male')">
+                <img src="/assets/gfx/npcs/player_folkmar.png" style="width:24px;height:48px;image-rendering:pixelated;object-fit:cover;object-position:0 0;margin-bottom:4px;" /><br />
                 👦 Folkmar
               </button>
               <button class="gender-btn ${gameState.gender === 'female' ? 'active' : ''}" onclick="window.__GERM_UI__.setGender('female')">
+                <img src="/assets/gfx/npcs/player_alrun.png" style="width:24px;height:48px;image-rendering:pixelated;object-fit:cover;object-position:0 0;margin-bottom:4px;" /><br />
                 👧 Alrun
               </button>
             </div>
@@ -382,6 +580,10 @@ export class UIScene extends Phaser.Scene {
     gameState.gender = gender;
     gameState.playerName = gender === 'male' ? 'Folkmar' : 'Alrun';
     sound.playClick();
+    const world = this.scene.get('World') as any;
+    if (world?.refreshCharacterAppearance) {
+      world.refreshCharacterAppearance();
+    }
     this.openStartScreen();
   }
 
@@ -419,7 +621,8 @@ export class UIScene extends Phaser.Scene {
   // =========================================================================
   // MENTOR DIALOG MODAL WITH TOOLTIPS & GATING
   // =========================================================================
-  public showMentorDialog(chId: number): void {
+  public showMentorDialog(chId: number, onClose?: () => void): void {
+    this.onDialogClose = onClose;
     const ch = CHAPTERS.find((c) => c.id === chId) || CHAPTERS[0];
     this.activeModal = 'dialog';
     this.touchControls.setVisible(false);
@@ -1206,5 +1409,15 @@ export class UIScene extends Phaser.Scene {
     this.activeModal = 'none';
     this.modalOverlay.style.display = 'none';
     this.touchControls.setVisible(true);
+    if (this.onDialogClose) {
+      this.onDialogClose();
+      this.onDialogClose = undefined;
+    }
+    const world = this.scene.get('World') as any;
+    if (world?.resetDialogFocus) {
+      world.resetDialogFocus();
+    }
+    this.renderHUD();
+    this.renderQuestTracker();
   }
 }

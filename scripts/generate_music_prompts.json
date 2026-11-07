@@ -1,0 +1,106 @@
+[
+  {
+    "chapterId": 1,
+    "title": "Im Schatten des Langhauses",
+    "year": "ca. 10 v. Chr.",
+    "music": {
+      "trackId": "bgm_warmth",
+      "title": "Im Schutze der Sippe",
+      "mood": "Warm, rustikal, erdverbundene Akustik-Saiten & Holzflöte",
+      "bpm": 82,
+      "instruments": "Laute, Holzflöte, Rahmentrommel, Herdfeuer-Atmosphäre",
+      "prompt": "16-bit SNES acoustic folk chiptune, warm wooden lute, ancient flute, cozy hearth ambiance"
+    }
+  },
+  {
+    "chapterId": 2,
+    "title": "Feuer und Raseneisenerz",
+    "year": "ca. 5 v. Chr.",
+    "music": {
+      "trackId": "bgm_patterns",
+      "title": "Der Glutofen des Schmieds",
+      "mood": "Rhythmisch, metallurgisch, treibende Amboss-Perkussion",
+      "bpm": 96,
+      "instruments": "Amboss-Schläge, Bronze-Rasseln, treibender Bass-Puls",
+      "prompt": "16-bit SNES rhythmic forging music, heavy percussive anvil beats, steady bass pulse, medieval fantasy"
+    }
+  },
+  {
+    "chapterId": 3,
+    "title": "Händler, Münzen und Bernstein",
+    "year": "ca. 4 n. Chr.",
+    "music": {
+      "trackId": "bgm_desert_epic",
+      "title": "Warenzug an der Grenze",
+      "mood": "Kaufmännisch, weltgewandt, helle Akustikgitarre & Marktglocken",
+      "bpm": 90,
+      "instruments": "Zupfinstrumente, Marktschellen, Holzperkussion",
+      "prompt": "16-bit SNES merchant market theme, brisk acoustic strumming, festive bells, ancient trade road"
+    }
+  },
+  {
+    "chapterId": 4,
+    "title": "Unter der Gerichtseiche",
+    "year": "ca. 7 n. Chr.",
+    "music": {
+      "trackId": "bgm_oracle",
+      "title": "Das Wort der Freien",
+      "mood": "Feierlich, sakral, tiefe Hornklänge & Thingfrieden",
+      "bpm": 74,
+      "instruments": "Nordisches Blashorn, Gong, Männerchor-Harmonien",
+      "prompt": "16-bit SNES solemn Nordic horn, resonant gong, archaic male chant harmonies, sacred tribal law"
+    }
+  },
+  {
+    "chapterId": 5,
+    "title": "Der Nebel des Heiligen Hains",
+    "year": "ca. 8 n. Chr.",
+    "music": {
+      "trackId": "bgm_mist",
+      "title": "Nebel über dem Moor",
+      "mood": "Mystisch, geheimnisvoll, sphärische Harfe & Flötenelegie",
+      "bpm": 68,
+      "instruments": "Harfe, Panflöte, sanfte Kristallglocken",
+      "prompt": "16-bit SNES mystical dark forest ambient, airy pan flute, gentle glass chimes, mysterious ancient bog"
+    }
+  },
+  {
+    "chapterId": 6,
+    "title": "Die Schlucht von Kalkriese",
+    "year": "9 n. Chr.",
+    "music": {
+      "trackId": "bgm_desert_whispers",
+      "title": "Sturm im Engpass",
+      "mood": "Dramatisch, angespannt, marschierende Trommeln & Kriegshörner",
+      "bpm": 108,
+      "instruments": "Militärische Pauken, schneidende Bläser-Stabs, Marschrhythmus",
+      "prompt": "16-bit SNES dramatic battle overture, martial snare drums, sharp brass stabs, fateful forest ambush"
+    }
+  },
+  {
+    "chapterId": 7,
+    "title": "Wachtürme und Grenzmärkte",
+    "year": "ca. 140 n. Chr.",
+    "music": {
+      "trackId": "bgm_heart",
+      "title": "Frieden an der Palisade",
+      "mood": "Wachsam, wehrhaft, stetige Kadenz & Grenzwacht",
+      "bpm": 88,
+      "instruments": "Trompete, Marschtrommel, Akustikbass",
+      "prompt": "16-bit SNES frontier guard theme, steady cadence, military trumpet motif, fortified border post"
+    }
+  },
+  {
+    "chapterId": 8,
+    "title": "Neue Bündnisse und das Erbe Europas",
+    "year": "ca. 350 n. Chr.",
+    "music": {
+      "trackId": "bgm_warmth",
+      "title": "Die Wiege neuer Reiche",
+      "mood": "Erhaben, zukunftsweisend, reiche Orchesterklänge",
+      "bpm": 92,
+      "instruments": "Erhabene Streicher, edle Trompeten, volles 16-Bit-Orchester",
+      "prompt": "16-bit SNES uplifting finale, soaring strings, noble trumpets, historical legacy and transition"
+    }
+  }
+]

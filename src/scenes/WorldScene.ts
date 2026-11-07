@@ -1,18 +1,22 @@
 import Phaser from 'phaser';
 import { sound } from '../audio/sound';
+import { music } from '../audio/MusicManager';
 import { CHAPTERS } from '../data/chapters';
 import { GERMAN_BUILDINGS, GERMAN_ITEMS, GermanItemId } from '../data/items';
 import { GERMAN_RELICS, GermanRelic } from '../data/relics';
+import { STATIONS } from '../data/stations';
 import { gameState } from '../systems/GameState';
 import { WorldDecorManager } from '../world/decor';
 import { WildlifeManager } from '../world/Wildlife';
 import { LivingWorldManager } from '../world/LivingWorldManager';
 import { ChapterBanner } from '../ui/ChapterBanner';
 import { CompanionManager } from '../world/Companion';
+import { InteriorRoomId } from './InteriorScene';
+import { GroundSurface } from '../audio/FootstepAudio';
 
 interface InteractiveTarget {
   id: string;
-  kind: 'mentor' | 'resource' | 'relic' | 'portal' | 'trader' | 'building_plot' | 'interactive_quest';
+  kind: 'mentor' | 'resource' | 'relic' | 'portal' | 'trader' | 'building_plot' | 'interactive_quest' | 'door' | 'station';
   name: string;
   sub: string;
   x: number;
@@ -104,13 +108,16 @@ export class WorldScene extends Phaser.Scene {
     // 2. Scatter nature: Oaks, pines, bushes, mossy rocks
     this.scatterGermanicNature();
 
-    // 3. Static settlements, buildings & monuments
+    // 3. 3D Plateau Cliffs & Staircases
+    this.buildPlateauCliffs();
+
+    // 4. Static settlements, buildings & monuments
     this.buildStaticGermanicWorld();
 
     this.dynamicGroup = this.add.group();
     this.rebuildChapterEntities();
 
-    // 4. Player Spawn
+    // 5. Player Spawn
     const texKey = gameState.gender === 'female' ? 'player_alrun' : 'player_folkmar';
     this.player = this.add
       .sprite(gameState.playerX, gameState.playerY, texKey, 0)
@@ -129,10 +136,10 @@ export class WorldScene extends Phaser.Scene {
       this.companionManager.unlock(gameState.playerX - 24, gameState.playerY);
     }
 
-    // 5. Living wildlife: Wisente, sheep, rams, horses
+    // 6. Living wildlife: Wisente, sheep, rams, horses
     this.wildlifeManager.init(this.mapW, this.mapH);
 
-    // 6. Sunlight Overlay
+    // 7. Sunlight Overlay
     this.sunlightOverlay = this.add
       .rectangle(0, 0, this.mapW * 16, this.mapH * 16, 0xfef08a, 0.04)
       .setOrigin(0, 0)
@@ -158,6 +165,11 @@ export class WorldScene extends Phaser.Scene {
 
     this.initDOMLabelLayer();
 
+    const wObj = window as unknown as Record<string, unknown>;
+    wObj.__enterBuilding = (id?: InteriorRoomId) => this.enterInterior(id || 'langhaus_sippe');
+    wObj.__enterSampleInterior = () => this.enterInterior('langhaus_sippe');
+    wObj.__worldScene = this;
+
     // Subscribe to state changes (chapter progress, building construction)
     gameState.subscribe(() => {
       if (gameState.chapter !== this.lastBannerChapter) {
@@ -169,22 +181,86 @@ export class WorldScene extends Phaser.Scene {
             title: cDef.title,
             subtitle: `${cDef.year} · ${cDef.subtitle}`
           });
+          music.playChapterMusic(cDef);
         }
-        sound.playBGM(gameState.chapter);
       }
       this.bakeGermanicTerrainTexture(gameState.chapter);
       this.rebuildChapterEntities();
     });
 
     // Start background music
-    sound.playBGM(gameState.chapter);
+    if (chDef) {
+      music.playChapterMusic(chDef);
+    }
+  }
+
+  public getBaseZoom(): number {
+    return 1.0;
   }
 
   private updateCameraZoom(): void {
-    const w = this.scale.width;
-    const h = this.scale.height;
-    const zoom = w < 900 || h < 500 ? 2.25 : 2.75;
-    this.cameras.main.setZoom(zoom);
+    this.cameras.main.setZoom(this.getBaseZoom());
+  }
+
+  public focusOnDialog(x?: number, y?: number) {
+    this.cameras.main.zoomTo(1.32, 350, 'Sine.easeInOut');
+    if (x !== undefined && y !== undefined) {
+      this.cameras.main.pan((this.player.x + x) / 2, (this.player.y + y) / 2, 350, 'Sine.easeInOut');
+    }
+  }
+
+  public resetDialogFocus() {
+    const base = this.getBaseZoom();
+    this.cameras.main.zoomTo(base, 350, 'Sine.easeInOut');
+    this.cameras.main.startFollow(this.player, true, 0.14, 0.14);
+  }
+
+  public enterInterior(roomId: InteriorRoomId = 'langhaus_sippe') {
+    sound.click();
+    if (this.labelLayer) {
+      this.labelLayer.style.display = 'none';
+      this.labelLayer.innerHTML = '';
+    }
+    this.scene.sleep('World');
+    this.scene.launch('InteriorScene', { roomId });
+  }
+
+  public refreshCharacterAppearance() {
+    if (!this.player) return;
+    const charKey = gameState.gender === 'female' ? 'player_alrun' : 'player_folkmar';
+    this.player.setTexture(charKey);
+  }
+
+  public getPlayerSurface(): GroundSurface {
+    const tx = Math.floor(this.player.x / 16);
+    const ty = Math.floor(this.player.y / 16);
+    if ((ty >= 28 && ty <= 30 && tx >= 11 && tx <= 19) || (ty >= 50 && ty <= 52 && tx >= 11 && tx <= 19)) {
+      return 'wood';
+    }
+    if ((tx >= 20 && tx <= 28 && ty >= 46 && ty <= 54) || (tx >= 46 && tx <= 54 && ty >= 52 && ty <= 58)) {
+      return 'stone';
+    }
+    return 'grass';
+  }
+
+  private buildPlateauCliffs(): void {
+    const stairCols = [32, 68];
+    for (const sx of stairCols) {
+      if (this.textures.get('world_atlas')?.has('stairs_stone')) {
+        this.add
+          .image(sx * 16, 13 * 16, 'world_atlas', 'stairs_stone')
+          .setScale(0.75)
+          .setDepth(4);
+      }
+    }
+    if (this.textures.exists('cliffs_nature')) {
+      for (let tx = 6; tx < 94; tx += 4) {
+        if (tx >= 30 && tx <= 34) continue;
+        if (tx >= 66 && tx <= 70) continue;
+        if (tx >= 11 && tx <= 19) continue;
+        this.add.image(tx * 16, 12 * 16, 'cliffs_nature').setDepth(3);
+      }
+    }
   }
 
   private initDOMLabelLayer(): void {
@@ -1049,6 +1125,51 @@ export class WorldScene extends Phaser.Scene {
         questMessage: '👑 Höchste Ehre der Sippe! Drücke [U], um dein Chronisten-Diplom zu bewundern!',
       });
     }
+
+    // 6. Interactive Learning Stations (5 Handlungsstationen)
+    STATIONS.forEach((st) => {
+      if (ch >= st.chapterId) {
+        this.targets.push({
+          id: `station_${st.id}`,
+          kind: 'station',
+          name: st.title,
+          sub: `[E] ${st.subtitle} erkunden`,
+          x: st.x,
+          y: st.y,
+          minChapter: st.chapterId,
+          questMessage: `Station geöffnet: ${st.title}`,
+        });
+      }
+    });
+
+    // 7. Interior Entrances (3 Begehbare Innenräume)
+    this.targets.push({
+      id: 'door_langhaus',
+      kind: 'door',
+      name: 'Wohnstallhaus der Sippe',
+      sub: '[E] Langhaus betreten (Wohnteil & Viehstall)',
+      x: 36 * 16,
+      y: 28 * 16,
+      minChapter: 1,
+    });
+    this.targets.push({
+      id: 'door_schmiede',
+      kind: 'door',
+      name: 'Rennofen & Eisenschmiede',
+      sub: '[E] Werkstatt betreten (Esse, Luppe & Amboss)',
+      x: 48 * 16,
+      y: 34 * 16,
+      minChapter: 2,
+    });
+    this.targets.push({
+      id: 'door_limes',
+      kind: 'door',
+      name: 'Limes-Handelskontor',
+      sub: '[E] Handelsstation betreten (Geldwechsel & Amphoren)',
+      x: 24 * 16,
+      y: 68 * 16,
+      minChapter: 3,
+    });
   }
 
   // =========================================================================
@@ -1093,7 +1214,7 @@ export class WorldScene extends Phaser.Scene {
       // Footstep timing & sound
       this.stepTimer -= delta;
       if (this.stepTimer <= 0) {
-        sound.playClick();
+        sound.step(this.getPlayerSurface());
         this.stepTimer = 340;
       }
 
@@ -1167,11 +1288,28 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
+    if (t.kind === 'door' || t.id.startsWith('door_')) {
+      const room = t.id === 'door_schmiede' ? 'eisenschmiede_rennofen' : t.id === 'door_limes' ? 'limes_handelsstation' : 'langhaus_sippe';
+      this.enterInterior(room);
+      return;
+    }
+
+    if (t.kind === 'station' || t.id.startsWith('station_')) {
+      const stId = t.id.replace('station_', '');
+      const st = STATIONS.find((s) => s.id === stId || s.id === t.id);
+      if (st) {
+        ui?.openStation(st.id);
+      }
+      return;
+    }
+
     if (t.kind === 'mentor') {
       sound.playClick();
       // Speaking with mentor marks objective 0
       gameState.setObjective(gameState.chapter, 0, true);
-      ui?.showMentorDialog(gameState.chapter);
+      this.focusOnDialog(t.x, t.y);
+      ui?.showMentorDialog(gameState.chapter, () => this.resetDialogFocus());
+      return;
     } else if (t.kind === 'resource' && t.itemId) {
       sound.playCollect();
       gameState.addItem(t.itemId, 2);
@@ -1198,7 +1336,11 @@ export class WorldScene extends Phaser.Scene {
       }
     } else if (t.kind === 'relic' && t.relic) {
       sound.playRelic();
-      ui?.showRelicQuizModal(t.relic);
+      if (ui?.openArtifactInspector) {
+        ui.openArtifactInspector(t.relic.id);
+      } else {
+        ui?.showRelicQuizModal(t.relic);
+      }
     } else if (t.kind === 'building_plot' && t.buildingId) {
       sound.playCraft();
       ui?.showBuildingModal(t.buildingId);

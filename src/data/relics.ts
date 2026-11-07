@@ -132,3 +132,6 @@ export const GERMAN_RELICS: GermanRelic[] = [
     correctIndex: 0,
   },
 ];
+
+export const RELICS = GERMAN_RELICS;
+

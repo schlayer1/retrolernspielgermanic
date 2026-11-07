@@ -150,4 +150,41 @@ if (overlaps > 0) {
   process.exit(1);
 } else {
   console.log(`✅ Layout Check Passed: ${items.length} placed objects verified with 0 visual bounding-box overlaps!`);
+
+  const gateErrors = [];
+  function checkGate(name, ok, msg) {
+    if (!ok) gateErrors.push(`❌ ${name}: ${msg}`);
+    else console.log(`✅ ${name} passed`);
+  }
+
+  const mainCode = fs.readFileSync(path.join(ROOT, 'src/main.ts'), 'utf8');
+  checkGate('Gate A (Native 480x270)', mainCode.includes('GAME_W = 480') && mainCode.includes('GAME_H = 270') && mainCode.includes('Phaser.Scale.FIT'), 'main.ts must use 480x270 Phaser.Scale.FIT');
+
+  const lexCode = fs.readFileSync(path.join(ROOT, 'src/data/lexicon.ts'), 'utf8');
+  const lexMatches = lexCode.match(/id:\s*'[^']+'/g) || [];
+  checkGate('Gate B (27 Lexicon Entries)', lexMatches.length === 27, `Expected 27 lexicon entries, found ${lexMatches.length}`);
+
+  const chCode = fs.readFileSync(path.join(ROOT, 'src/data/chapters.ts'), 'utf8');
+  checkGate('Gate C (Chapters + Music + Interior)', (chCode.match(/mentorId:\s*'[^']+'/g) || []).length >= 8 && chCode.includes('targetInterior:') && chCode.includes('trackId:'), 'chapters.ts must have chapters with targetInterior and music');
+
+  const stCode = fs.readFileSync(path.join(ROOT, 'src/data/stations.ts'), 'utf8');
+  checkGate('Gate D (5 Interactive Stations)', (stCode.match(/id:\s*'station_/g) || []).length === 5, 'stations.ts must define 5 stations');
+
+  const relCode = fs.readFileSync(path.join(ROOT, 'src/data/relics.ts'), 'utf8');
+  checkGate('Gate E (5 Germanic Relics)', (relCode.match(/id:\s*'relic_/g) || []).length === 5 && (relCode.includes('GERMAN_RELICS') || relCode.includes('export const RELICS')), 'relics.ts must define 5 relics');
+
+  const intCode = fs.readFileSync(path.join(ROOT, 'src/scenes/InteriorScene.ts'), 'utf8');
+  checkGate('Gate F (Walkable InteriorScene without fillCircle)', intCode.includes('langhaus_sippe') && intCode.includes('eisenschmiede_rennofen') && intCode.includes('limes_handelsstation') && !intCode.includes('fillCircle') && intCode.includes('exitToOverworld'), 'InteriorScene.ts must have 3 rooms, exitToOverworld, and 0 fillCircle calls');
+
+  const src = fs.readFileSync(path.join(ROOT, 'src/scenes/WorldScene.ts'), 'utf8');
+  checkGate('Gate G (Seamless Terrain + Cliffs + Flora + 1.0/1.32 Zoom)', (src.includes('bakeGermanicTerrainTexture') || src.includes('bakeTerrainTexture')) && src.includes('buildPlateauCliffs') && src.includes('scatterGermanicNature') && src.includes('zoomTo(1.32'), 'WorldScene.ts must use seamless baked terrain, cliffs, flora, and 1.0/1.32 zoom');
+
+  const uiCode = fs.readFileSync(path.join(ROOT, 'src/scenes/UIScene.ts'), 'utf8');
+  checkGate('Gate H (Steinzeit Top-HUD & 10 Key Badges)', uiCode.includes('hud-quest-box') && uiCode.includes('hud-bars-card') && uiCode.includes('hud-btn-row') && uiCode.includes('hud-hotbar') && (uiCode.match(/class="key-badge"/g) || []).length >= 10, 'UIScene.ts must render Steinzeit Top-HUD, 10 key-badge buttons, and bottom hotbar');
+
+  if (gateErrors.length > 0) {
+    console.error(gateErrors.join('\n'));
+    process.exit(1);
+  }
+  console.log('🏆 ALL SPATIAL & QUALITY GATES PASSED!');
 }
