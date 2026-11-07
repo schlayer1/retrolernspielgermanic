@@ -526,11 +526,11 @@ export class UIScene extends Phaser.Scene {
             <label>2. Figur wählen:</label>
             <div class="start-gender-row">
               <button class="gender-btn ${gameState.gender === 'male' ? 'active' : ''}" onclick="window.__GERM_UI__.setGender('male')">
-                <img src="/assets/gfx/npcs/player_folkmar.png" style="width:24px;height:48px;image-rendering:pixelated;object-fit:cover;object-position:0 0;margin-bottom:4px;" /><br />
+                <img src="${gameState.malePreviewUrl || '/assets/gfx/npcs/player_folkmar.png'}" style="width:24px;height:48px;image-rendering:pixelated;margin-bottom:4px;" /><br />
                 👦 Folkmar
               </button>
               <button class="gender-btn ${gameState.gender === 'female' ? 'active' : ''}" onclick="window.__GERM_UI__.setGender('female')">
-                <img src="/assets/gfx/npcs/player_alrun.png" style="width:24px;height:48px;image-rendering:pixelated;object-fit:cover;object-position:0 0;margin-bottom:4px;" /><br />
+                <img src="${gameState.femalePreviewUrl || '/assets/gfx/npcs/player_alrun.png'}" style="width:24px;height:48px;image-rendering:pixelated;margin-bottom:4px;" /><br />
                 👧 Alrun
               </button>
             </div>

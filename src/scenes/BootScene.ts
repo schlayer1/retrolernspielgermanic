@@ -157,10 +157,31 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     this.createAnimations();
+    this.extractPreviewImages();
 
     // Start UI scene & World scene
     this.scene.start('World');
     this.scene.launch('UI');
+  }
+
+  private extractPreviewImages(): void {
+    const toDataUrl = (texKey: string, sx = 0, sy = 0, sw = 16, sh = 32): string => {
+      try {
+        const src = this.textures.get(texKey).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+        const c = document.createElement('canvas');
+        c.width = sw;
+        c.height = sh;
+        const ctx = c.getContext('2d')!;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
+        return c.toDataURL();
+      } catch {
+        return '';
+      }
+    };
+
+    gameState.malePreviewUrl = toDataUrl('player_folkmar', 0, 0, 16, 32);
+    gameState.femalePreviewUrl = toDataUrl('player_alrun', 0, 0, 16, 32);
   }
 
   private createAnimations(): void {

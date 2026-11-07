@@ -121,8 +121,9 @@ export class WorldScene extends Phaser.Scene {
     const texKey = gameState.gender === 'female' ? 'player_alrun' : 'player_folkmar';
     this.player = this.add
       .sprite(gameState.playerX, gameState.playerY, texKey, 0)
-      .setOrigin(0.5, 0.9)
+      .setOrigin(0.5, 0.85)
       .setDepth(gameState.playerY);
+    this.player.anims.play(`${texKey}_idle_down`, true);
     this.livingWorldManager.registerPlayer(this.player);
 
     this.companionManager = new CompanionManager(this, {
@@ -244,23 +245,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private buildPlateauCliffs(): void {
-    const stairCols = [32, 68];
-    for (const sx of stairCols) {
-      if (this.textures.get('world_atlas')?.has('stairs_stone')) {
-        this.add
-          .image(sx * 16, 13 * 16, 'world_atlas', 'stairs_stone')
-          .setScale(0.75)
-          .setDepth(4);
-      }
-    }
-    if (this.textures.exists('cliffs_nature')) {
-      for (let tx = 6; tx < 94; tx += 4) {
-        if (tx >= 30 && tx <= 34) continue;
-        if (tx >= 66 && tx <= 70) continue;
-        if (tx >= 11 && tx <= 19) continue;
-        this.add.image(tx * 16, 12 * 16, 'cliffs_nature').setDepth(3);
-      }
-    }
+    // Nature cliffs and paths are rendered cleanly in the terrain texture
   }
 
   private initDOMLabelLayer(): void {
@@ -442,7 +427,8 @@ export class WorldScene extends Phaser.Scene {
             } else if (minDistRoad + jitter * 0.55 < 0) {
               // Trail / Road
               if (roadType === 'boardwalk') {
-                rgb = sampleBlock(germA2, 4, 2, px, py); // Timber planks
+                const plankPattern = (px + (py % 4 === 0 ? 1 : 0)) % 6 === 0 ? 116 : 142;
+                rgb = [plankPattern, Math.round(plankPattern * 0.72), Math.round(plankPattern * 0.44)];
               } else if (roadType === 'cobble') {
                 rgb = sampleBlock(a2, 6, 1, px, py); // Natural stone cobble
               } else {
@@ -457,12 +443,12 @@ export class WorldScene extends Phaser.Scene {
             } else if (inMoorZone) {
               // Mossy Bog / Peat ground
               const moorWave = Math.sin(px * 0.04 + py * 0.03);
-              rgb = moorWave > 0.1 ? sampleBlock(a2, 0, 3, px, py) : sampleBlock(a2, 0, 1, px, py);
+              rgb = moorWave > 0.1 ? sampleBlock(a2, 0, 1, px, py) : sampleBlock(a2, 1, 1, px, py);
             } else {
               // Free Germania meadows & woodlands
               const forestWave = Math.sin(px * 0.022 + py * 0.018) * 0.5 + Math.cos(px * 0.015 - py * 0.025) * 0.5;
               if (forestWave + dither * 0.5 > 0.62) {
-                rgb = sampleBlock(a2, 0, 3, px, py); // Deep mossy forest
+                rgb = sampleBlock(a2, 0, 1, px, py); // Deep forest grass
               } else if (forestWave + dither * 0.5 > 0.22) {
                 rgb = sampleBlock(a2, 0, 1, px, py); // Forest grass
               } else {
